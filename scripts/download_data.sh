@@ -24,6 +24,10 @@ MARKET_AREA_DOWNLOAD_DIR="${DOWNLOAD_DIR}/market_area"
 FORCE="${FORCE:-0}"
 DOWNLOAD_RETRIES="${DOWNLOAD_RETRIES:-5}"
 DOWNLOAD_RETRY_DELAY="${DOWNLOAD_RETRY_DELAY:-5}"
+CURL_HTTP_VERSION_ARGS=()
+if curl --help 2>/dev/null | grep -q -- '--http1.1'; then
+  CURL_HTTP_VERSION_ARGS=(--http1.1)
+fi
 
 mkdir -p \
   "${PEOPLE_DIR}" \
@@ -115,7 +119,7 @@ download_if_needed() {
     if curl \
       --fail \
       --location \
-      --http1.1 \
+      "${CURL_HTTP_VERSION_ARGS[@]}" \
       --retry 3 \
       --retry-delay 3 \
       --user-agent "Mozilla/5.0" \
