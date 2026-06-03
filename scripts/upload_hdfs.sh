@@ -159,7 +159,7 @@ hdfs dfs -mkdir -p \
 
 echo "== Upload raw datasets =="
 hdfs_put_csv_dir "${PEOPLE_DIR}" "${HDFS_RAW_DIR}/people" "people" "1"
-hdfs_put_csv_dir "${SUBWAY_DIR}" "${HDFS_RAW_DIR}/subway" "subway"
+hdfs_put_csv_dir "${SUBWAY_DIR}" "${HDFS_RAW_DIR}/subway" "subway" "1"
 hdfs_put_csv_dir "${STATION_MASTER_DIR}" "${HDFS_RAW_DIR}/station_master" "station_master" "1"
 hdfs_put_csv_dir "${MARKET_SALES_DIR}" "${HDFS_RAW_DIR}/market_sales" "market_sales" "1"
 hdfs_put_csv_dir "${MARKET_AREA_DIR}" "${HDFS_RAW_DIR}/market_area" "market_area" "1"
