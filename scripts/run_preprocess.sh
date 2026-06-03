@@ -12,6 +12,9 @@ HDFS_BASE_DIR="${HDFS_BASE_DIR:-/user/${HDFS_USER}/seoul_stickiness}"
 HDFS_RAW_DIR="${HDFS_BASE_DIR}/raw"
 HDFS_PROCESSED_DIR="${HDFS_BASE_DIR}/processed"
 PYSPARK_PYTHON="${PYSPARK_PYTHON:-python3.6}"
+SPARK_DRIVER_MEMORY="${SPARK_DRIVER_MEMORY:-2g}"
+SPARK_EXECUTOR_MEMORY="${SPARK_EXECUTOR_MEMORY:-2g}"
+SPARK_EXECUTOR_CORES="${SPARK_EXECUTOR_CORES:-1}"
 
 require_command() {
   local command_name="$1"
@@ -30,6 +33,9 @@ echo "PROJECT_DIR=${PROJECT_DIR}"
 echo "HDFS_BASE_DIR=${HDFS_BASE_DIR}"
 echo "HIVE_HDFS_USER=${HIVE_HDFS_USER}"
 echo "PYSPARK_PYTHON=${PYSPARK_PYTHON}"
+echo "SPARK_DRIVER_MEMORY=${SPARK_DRIVER_MEMORY}"
+echo "SPARK_EXECUTOR_MEMORY=${SPARK_EXECUTOR_MEMORY}"
+echo "SPARK_EXECUTOR_CORES=${SPARK_EXECUTOR_CORES}"
 
 echo "== Grant Hive ACLs for raw tables =="
 grant_hive_hdfs_acl "${HDFS_BASE_DIR}"
@@ -42,6 +48,9 @@ hive \
 
 echo "== Run Spark preprocessing =="
 PYSPARK_PYTHON="${PYSPARK_PYTHON}" spark-submit \
+  --driver-memory "${SPARK_DRIVER_MEMORY}" \
+  --executor-memory "${SPARK_EXECUTOR_MEMORY}" \
+  --executor-cores "${SPARK_EXECUTOR_CORES}" \
   "${PROJECT_DIR}/src/preprocess.py" \
   --hdfs-base-dir "${HDFS_BASE_DIR}"
 

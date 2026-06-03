@@ -192,12 +192,20 @@ def build_market_dong_bridge(clean_market_area, hdfs_base_dir):
 
 
 def build_station_dong_bridge(clean_station_master, clean_market_area, hdfs_base_dir):
-    station = clean_station_master.withColumn(
-        "station_key", normalize_station_key(F.col("station_name"))
-    ).where(F.length(F.col("station_key")) >= 2)
-    market = clean_market_area.withColumn(
-        "market_key",
-        F.regexp_replace(F.lower(F.trim(F.col("market_name"))), "\\s+", ""),
+    station = (
+        clean_station_master.withColumn(
+            "station_key", normalize_station_key(F.col("station_name"))
+        )
+        .where(F.length(F.col("station_key")) >= 2)
+        .select("station_name", "line_name", "station_key")
+    )
+    market = (
+        clean_market_area.withColumn(
+            "market_key",
+            F.regexp_replace(F.lower(F.trim(F.col("market_name"))), "\\s+", ""),
+        )
+        .select("dong_code", "dong_name", "market_key")
+        .dropDuplicates()
     )
     matched = (
         station.crossJoin(F.broadcast(market))
