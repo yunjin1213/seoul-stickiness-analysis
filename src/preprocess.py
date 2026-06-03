@@ -56,7 +56,7 @@ def zscore(column):
     )
 
 
-def build_clean_people(spark, hdfs_base_dir):
+def build_clean_people(spark, hdfs_base_dir, target_dongs):
     raw = read_csv(spark, hdfs_base_dir + "/raw/people")
     df = (
         raw.select(
@@ -67,6 +67,7 @@ def build_clean_people(spark, hdfs_base_dir):
         )
         .where(F.col("base_date").isNotNull())
         .where(F.col("dong_code").isNotNull())
+        .join(F.broadcast(target_dongs), "dong_code", "inner")
     )
     return write_parquet(df, hdfs_base_dir + "/processed/clean_people")
 
@@ -113,6 +114,7 @@ def build_clean_subway(spark, hdfs_base_dir):
         .withColumn("passenger_count", F.col("passenger_count").cast("long"))
         .where(F.col("transport_date").isNotNull())
         .where(F.col("station_name").isNotNull())
+        .where(F.col("boarding_type") == F.lit("하차"))
     )
     return write_parquet(df, hdfs_base_dir + "/processed/clean_subway")
 
@@ -349,10 +351,11 @@ def main():
     hdfs_base_dir = args.hdfs_base_dir.rstrip("/")
     print("HDFS base dir: {0}".format(hdfs_base_dir))
 
-    clean_people = build_clean_people(spark, hdfs_base_dir)
+    clean_market_area = build_clean_market_area(spark, hdfs_base_dir)
+    target_dongs = clean_market_area.select("dong_code").dropDuplicates()
+    clean_people = build_clean_people(spark, hdfs_base_dir, target_dongs)
     clean_subway = build_clean_subway(spark, hdfs_base_dir)
     clean_station_master = build_clean_station_master(spark, hdfs_base_dir)
-    clean_market_area = build_clean_market_area(spark, hdfs_base_dir)
     clean_market_sales = build_clean_market_sales(spark, hdfs_base_dir)
 
     market_dong_bridge = build_market_dong_bridge(clean_market_area, hdfs_base_dir)
