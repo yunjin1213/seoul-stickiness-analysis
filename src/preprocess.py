@@ -206,7 +206,7 @@ def build_station_dong_bridge(clean_station_master, clean_market_area, hdfs_base
     )
     matched = (
         station.crossJoin(market)
-        .where(F.instr(F.col("market_key"), F.col("station_key")) > 0)
+        .where(F.expr("instr(market_key, station_key) > 0"))
         .select(
             station.station_name,
             station.line_name,
