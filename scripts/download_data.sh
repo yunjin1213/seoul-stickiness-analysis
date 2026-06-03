@@ -22,6 +22,8 @@ MARKET_SALES_DOWNLOAD_DIR="${DOWNLOAD_DIR}/market_sales"
 MARKET_AREA_DOWNLOAD_DIR="${DOWNLOAD_DIR}/market_area"
 
 FORCE="${FORCE:-0}"
+DOWNLOAD_RETRIES="${DOWNLOAD_RETRIES:-5}"
+DOWNLOAD_RETRY_DELAY="${DOWNLOAD_RETRY_DELAY:-5}"
 
 mkdir -p \
   "${PEOPLE_DIR}" \
@@ -92,6 +94,8 @@ download_if_needed() {
   local curl_args=("$@")
   local url="${curl_args[$((${#curl_args[@]} - 1))]}"
   local is_post=0
+  local attempt=1
+  local tmp_path="${output_path}.part"
 
   if [[ -s "${output_path}" && "${FORCE}" != "1" ]]; then
     echo "[skip] ${output_path}"
@@ -104,16 +108,34 @@ download_if_needed() {
     fi
   done
 
-  echo "[download] ${output_path}"
-  if ! curl --fail --location --retry 3 --retry-delay 3 --user-agent "Mozilla/5.0" "${curl_args[@]}" --output "${output_path}"; then
-    if [[ "${is_post}" == "1" ]]; then
-      echo "[error] curl POST download failed: ${url}" >&2
-      return 1
+  while (( attempt <= DOWNLOAD_RETRIES )); do
+    echo "[download] ${output_path} (attempt ${attempt}/${DOWNLOAD_RETRIES})"
+    rm -f "${tmp_path}"
+
+    if curl --fail --location --retry 3 --retry-delay 3 --user-agent "Mozilla/5.0" "${curl_args[@]}" --output "${tmp_path}"; then
+      mv "${tmp_path}" "${output_path}"
+      return
     fi
 
-    echo "[warn] curl download failed. Trying Python downloader..." >&2
-    python_download "${url}" "${output_path}"
-  fi
+    if [[ "${is_post}" != "1" ]]; then
+      echo "[warn] curl download failed. Trying Python downloader..." >&2
+      if python_download "${url}" "${tmp_path}"; then
+        mv "${tmp_path}" "${output_path}"
+        return
+      fi
+    fi
+
+    echo "[warn] download failed: ${url}" >&2
+    attempt=$((attempt + 1))
+    if (( attempt <= DOWNLOAD_RETRIES )); then
+      echo "[wait] retry in ${DOWNLOAD_RETRY_DELAY}s" >&2
+      sleep "${DOWNLOAD_RETRY_DELAY}"
+    fi
+  done
+
+  rm -f "${tmp_path}"
+  echo "[error] download failed after ${DOWNLOAD_RETRIES} attempts: ${url}" >&2
+  return 1
 }
 
 unzip_if_needed() {
