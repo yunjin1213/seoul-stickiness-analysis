@@ -275,22 +275,19 @@ def build_aggregates(
 
 
 def build_marts(people, subway, sales, hdfs_base_dir):
+    subway_daily = subway.withColumnRenamed("transport_date", "base_date").select(
+        "base_date", "dong_code", "time_slot", "subway_inflow"
+    )
     daily = (
-        people.join(
-            subway,
-            (people.base_date == subway.transport_date)
-            & (people.dong_code == subway.dong_code)
-            & (people.time_slot == subway.time_slot),
-            "inner",
-        )
+        people.join(subway_daily, ["base_date", "dong_code", "time_slot"], "inner")
         .select(
-            people.base_date,
-            people.quarter_code,
-            people.dong_code,
-            people.dong_name,
-            people.time_slot,
-            subway.subway_inflow,
-            people.living_population,
+            "base_date",
+            "quarter_code",
+            "dong_code",
+            "dong_name",
+            "time_slot",
+            "subway_inflow",
+            "living_population",
         )
         .withColumn(
             "stay_index",
