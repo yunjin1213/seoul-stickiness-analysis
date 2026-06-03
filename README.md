@@ -240,6 +240,27 @@ Conversion Score = 표준화(Stay Index) + 표준화(Consumption Index)
 - 체류력과 업종 구조 관계 분석
 - 서울 야간상권 유형 분류
 
+## 실행 메모
+
+HDP Sandbox에서 원천 데이터를 HDFS에 올린 뒤 전처리를 실행한다.
+
+```bash
+bash scripts/upload_hdfs.sh
+bash scripts/run_preprocess.sh
+```
+
+Hive external table은 기본적으로 HiveServer2의 HDFS 사용자(`hive`) 권한으로 등록된다. 따라서 `/user/maria_dev/seoul_stickiness`처럼 개인 사용자 HDFS 경로에 데이터를 올린 경우, 단순히 `chmod 777`로 전체 공개하지 않고 스크립트가 다음 ACL을 자동 적용한다.
+
+```text
+user:hive:rwx
+```
+
+HiveServer2 HDFS 사용자가 다른 환경이면 다음처럼 지정한다.
+
+```bash
+HIVE_HDFS_USER=hive bash scripts/run_preprocess.sh
+```
+
 ## 확장 가능성
 
 - 평일/주말 비교

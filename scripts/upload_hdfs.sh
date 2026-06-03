@@ -7,6 +7,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 FINAL_DIR="$(cd "${PROJECT_DIR}/.." && pwd)"
+source "${SCRIPT_DIR}/hdfs_permissions.sh"
+
 DATASET_DIR="${DATASET_DIR:-${FINAL_DIR}/DataSet}"
 
 HDFS_USER="${HDFS_USER:-${USER:-maria_dev}}"
@@ -145,6 +147,7 @@ require_path "${MARKET_AREA_DIR}"
 echo "== HDFS upload settings =="
 echo "DATASET_DIR=${DATASET_DIR}"
 echo "HDFS_BASE_DIR=${HDFS_BASE_DIR}"
+echo "HIVE_HDFS_USER=${HIVE_HDFS_USER}"
 echo "OVERWRITE=${OVERWRITE}"
 
 echo "== Create HDFS directories =="
@@ -163,6 +166,12 @@ hdfs_put_csv_dir "${SUBWAY_DIR}" "${HDFS_RAW_DIR}/subway" "subway" "1"
 hdfs_put_csv_dir "${STATION_MASTER_DIR}" "${HDFS_RAW_DIR}/station_master" "station_master" "1"
 hdfs_put_csv_dir "${MARKET_SALES_DIR}" "${HDFS_RAW_DIR}/market_sales" "market_sales" "1"
 hdfs_put_csv_dir "${MARKET_AREA_DIR}" "${HDFS_RAW_DIR}/market_area" "market_area" "1"
+
+echo "== Grant Hive HDFS ACLs =="
+grant_hive_hdfs_acl "${HDFS_BASE_DIR}"
+grant_hive_hdfs_acl "${HDFS_RAW_DIR}"
+grant_hive_hdfs_acl "${HDFS_PROCESSED_DIR}"
+grant_hive_hdfs_acl "${HDFS_RESULTS_DIR}"
 
 echo "== Uploaded files =="
 hdfs dfs -du -h -s "${HDFS_BASE_DIR}" || true

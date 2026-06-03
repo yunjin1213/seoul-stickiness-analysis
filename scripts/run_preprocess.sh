@@ -5,9 +5,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+source "${SCRIPT_DIR}/hdfs_permissions.sh"
 
 HDFS_USER="${HDFS_USER:-${USER:-maria_dev}}"
 HDFS_BASE_DIR="${HDFS_BASE_DIR:-/user/${HDFS_USER}/seoul_stickiness}"
+HDFS_RAW_DIR="${HDFS_BASE_DIR}/raw"
+HDFS_PROCESSED_DIR="${HDFS_BASE_DIR}/processed"
 PYSPARK_PYTHON="${PYSPARK_PYTHON:-python3.6}"
 
 require_command() {
@@ -25,7 +28,12 @@ require_command spark-submit
 echo "== Preprocess settings =="
 echo "PROJECT_DIR=${PROJECT_DIR}"
 echo "HDFS_BASE_DIR=${HDFS_BASE_DIR}"
+echo "HIVE_HDFS_USER=${HIVE_HDFS_USER}"
 echo "PYSPARK_PYTHON=${PYSPARK_PYTHON}"
+
+echo "== Grant Hive ACLs for raw tables =="
+grant_hive_hdfs_acl "${HDFS_BASE_DIR}"
+grant_hive_hdfs_acl "${HDFS_RAW_DIR}"
 
 echo "== Create raw Hive external tables =="
 hive \
@@ -36,6 +44,9 @@ echo "== Run Spark preprocessing =="
 PYSPARK_PYTHON="${PYSPARK_PYTHON}" spark-submit \
   "${PROJECT_DIR}/src/preprocess.py" \
   --hdfs-base-dir "${HDFS_BASE_DIR}"
+
+echo "== Grant Hive ACLs for processed tables =="
+grant_hive_hdfs_acl "${HDFS_PROCESSED_DIR}"
 
 echo "== Create processed Hive external tables =="
 hive \
