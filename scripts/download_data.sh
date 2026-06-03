@@ -112,7 +112,16 @@ download_if_needed() {
     echo "[download] ${output_path} (attempt ${attempt}/${DOWNLOAD_RETRIES})"
     rm -f "${tmp_path}"
 
-    if curl --fail --location --retry 3 --retry-delay 3 --user-agent "Mozilla/5.0" "${curl_args[@]}" --output "${tmp_path}"; then
+    if curl \
+      --fail \
+      --location \
+      --http1.1 \
+      --retry 3 \
+      --retry-delay 3 \
+      --user-agent "Mozilla/5.0" \
+      --referer "https://www.data.go.kr/data/15099330/fileData.do" \
+      "${curl_args[@]}" \
+      --output "${tmp_path}"; then
       mv "${tmp_path}" "${output_path}"
       return
     fi
