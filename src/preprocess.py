@@ -41,6 +41,12 @@ def write_parquet(df, path):
     return df.sql_ctx.read.parquet(path)
 
 
+def hdfs_path_exists(spark, path):
+    hadoop_conf = spark._jsc.hadoopConfiguration()
+    fs = spark._jvm.org.apache.hadoop.fs.FileSystem.get(hadoop_conf)
+    return fs.exists(spark._jvm.org.apache.hadoop.fs.Path(path))
+
+
 def safe_divide(numerator, denominator):
     return F.when((denominator.isNull()) | (denominator == 0), F.lit(None)).otherwise(
         numerator / denominator
@@ -193,34 +199,31 @@ def build_market_dong_bridge(clean_market_area, hdfs_base_dir):
     return write_parquet(df, hdfs_base_dir + "/processed/bridge/market_dong_bridge")
 
 
-def build_station_dong_bridge(clean_station_master, clean_market_area, hdfs_base_dir):
-    station = (
-        clean_station_master.withColumn(
-            "station_key", normalize_station_key(F.col("station_name"))
+def build_station_dong_bridge(spark, hdfs_base_dir):
+    mapping_path = hdfs_base_dir + "/raw/station_dong_mapping"
+    if not hdfs_path_exists(spark, mapping_path):
+        raise RuntimeError(
+            "Missing station dong mapping: {0}. "
+            "Run scripts/create_station_dong_mapping.sh and scripts/upload_hdfs.sh first.".format(
+                mapping_path
+            )
         )
-        .where(F.length(F.col("station_key")) >= 2)
-        .select("station_name", "line_name", "station_key")
-    )
-    market = (
-        clean_market_area.withColumn(
-            "market_key",
-            F.regexp_replace(F.lower(F.trim(F.col("market_name"))), "\\s+", ""),
+
+    raw = read_csv(spark, mapping_path)
+    df = (
+        raw.select(
+            F.trim(F.col("station_name")).alias("station_name"),
+            F.trim(F.col("line_name")).alias("line_name"),
+            F.col("dong_code").cast("string").alias("dong_code"),
+            F.trim(F.col("dong_name")).alias("dong_name"),
+            F.trim(F.col("source")).alias("source"),
         )
-        .select("dong_code", "dong_name", "market_key")
+        .where(F.col("station_name").isNotNull())
+        .where(F.col("line_name").isNotNull())
+        .where(F.col("dong_code").isNotNull())
         .dropDuplicates()
     )
-    matched = (
-        station.crossJoin(F.broadcast(market))
-        .where(F.expr("instr(market_key, station_key) > 0"))
-        .select(
-            station.station_name,
-            station.line_name,
-            market.dong_code,
-            market.dong_name,
-        )
-        .dropDuplicates()
-    )
-    return write_parquet(matched, hdfs_base_dir + "/processed/bridge/station_dong_bridge")
+    return write_parquet(df, hdfs_base_dir + "/processed/bridge/station_dong_bridge")
 
 
 def sales_time_slot_from_hour(hour_col):
@@ -359,9 +362,7 @@ def main():
     clean_market_sales = build_clean_market_sales(spark, hdfs_base_dir)
 
     market_dong_bridge = build_market_dong_bridge(clean_market_area, hdfs_base_dir)
-    station_dong_bridge = build_station_dong_bridge(
-        clean_station_master, clean_market_area, hdfs_base_dir
-    )
+    station_dong_bridge = build_station_dong_bridge(spark, hdfs_base_dir)
     people, subway, sales = build_aggregates(
         clean_people,
         clean_subway,

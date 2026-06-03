@@ -22,6 +22,7 @@ SUBWAY_DIR="${DATASET_DIR}/Subway"
 STATION_MASTER_DIR="${DATASET_DIR}/StationMaster"
 MARKET_SALES_DIR="${DATASET_DIR}/MarketSales"
 MARKET_AREA_DIR="${DATASET_DIR}/MarketArea"
+STATION_DONG_MAPPING_DIR="${DATASET_DIR}/StationDongMapping"
 
 OVERWRITE="${OVERWRITE:-1}"
 
@@ -67,6 +68,18 @@ require_path() {
   if [[ ! -e "${path}" ]]; then
     echo "[error] Required path not found: ${path}" >&2
     echo "[hint] Run: bash scripts/download_data.sh" >&2
+    exit 1
+  fi
+}
+
+require_csv_dir() {
+  local path="$1"
+  local hint="$2"
+
+  require_path "${path}"
+  if ! find "${path}" -maxdepth 1 -type f -name '*.csv' | grep -q .; then
+    echo "[error] Required CSV not found: ${path}/*.csv" >&2
+    echo "[hint] ${hint}" >&2
     exit 1
   fi
 }
@@ -141,6 +154,7 @@ fi
 require_path "${PEOPLE_DIR}"
 require_path "${SUBWAY_DIR}"
 require_path "${STATION_MASTER_DIR}"
+require_csv_dir "${STATION_DONG_MAPPING_DIR}" "Run: bash scripts/create_station_dong_mapping.sh"
 require_path "${MARKET_SALES_DIR}"
 require_path "${MARKET_AREA_DIR}"
 
@@ -155,6 +169,7 @@ hdfs dfs -mkdir -p \
   "${HDFS_RAW_DIR}/people" \
   "${HDFS_RAW_DIR}/subway" \
   "${HDFS_RAW_DIR}/station_master" \
+  "${HDFS_RAW_DIR}/station_dong_mapping" \
   "${HDFS_RAW_DIR}/market_sales" \
   "${HDFS_RAW_DIR}/market_area" \
   "${HDFS_PROCESSED_DIR}" \
@@ -164,6 +179,7 @@ echo "== Upload raw datasets =="
 hdfs_put_csv_dir "${PEOPLE_DIR}" "${HDFS_RAW_DIR}/people" "people" "1"
 hdfs_put_csv_dir "${SUBWAY_DIR}" "${HDFS_RAW_DIR}/subway" "subway" "1"
 hdfs_put_csv_dir "${STATION_MASTER_DIR}" "${HDFS_RAW_DIR}/station_master" "station_master" "1"
+hdfs_put_csv_dir "${STATION_DONG_MAPPING_DIR}" "${HDFS_RAW_DIR}/station_dong_mapping" "station_dong_mapping" "1"
 hdfs_put_csv_dir "${MARKET_SALES_DIR}" "${HDFS_RAW_DIR}/market_sales" "market_sales" "1"
 hdfs_put_csv_dir "${MARKET_AREA_DIR}" "${HDFS_RAW_DIR}/market_area" "market_area" "1"
 

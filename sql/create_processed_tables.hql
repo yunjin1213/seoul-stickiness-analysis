@@ -75,7 +75,8 @@ CREATE EXTERNAL TABLE station_dong_bridge (
   station_name STRING,
   line_name STRING,
   dong_code STRING,
-  dong_name STRING
+  dong_name STRING,
+  source STRING
 )
 STORED AS PARQUET
 LOCATION '${hivevar:hdfs_base_dir}/processed/bridge/station_dong_bridge';

@@ -96,6 +96,22 @@ STORED AS TEXTFILE
 LOCATION '${hivevar:hdfs_base_dir}/raw/station_master'
 TBLPROPERTIES ('skip.header.line.count'='1');
 
+DROP TABLE IF EXISTS raw_station_dong_mapping;
+CREATE EXTERNAL TABLE raw_station_dong_mapping (
+  station_name STRING,
+  line_name STRING,
+  latitude DOUBLE,
+  longitude DOUBLE,
+  dong_code STRING,
+  dong_name STRING,
+  source STRING
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE
+LOCATION '${hivevar:hdfs_base_dir}/raw/station_dong_mapping'
+TBLPROPERTIES ('skip.header.line.count'='1');
+
 DROP TABLE IF EXISTS raw_market_sales;
 CREATE EXTERNAL TABLE raw_market_sales (
   quarter_code_raw STRING,

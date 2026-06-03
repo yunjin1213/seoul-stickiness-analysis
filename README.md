@@ -242,7 +242,36 @@ Conversion Score = 표준화(Stay Index) + 표준화(Consumption Index)
 
 ## 실행 메모
 
-HDP Sandbox에서 원천 데이터를 HDFS에 올린 뒤 전처리를 실행한다.
+HDP Sandbox에서 원천 데이터를 수집한 뒤, Kakao Local API로 지하철역-행정동 매핑 파일을 생성하고 HDFS에 올린다.
+
+Kakao REST API 키는 프로젝트 루트의 `.env`에 저장하거나 현재 쉘 환경변수로 제공한다. `.env`는 공개 저장소에 커밋하면 안 된다.
+
+```bash
+cp .env.example .env
+vi .env
+```
+
+`.env`에는 실제 키 값을 다음 형식으로 넣는다.
+
+```bash
+KAKAO_REST_API_KEY=...
+```
+
+그 다음 매핑 파일을 생성한다.
+
+```bash
+bash scripts/create_station_dong_mapping.sh
+```
+
+생성되는 파일:
+
+```text
+${DATASET_DIR}/StationDongMapping/station_dong_mapping.csv
+```
+
+이 파일은 Kakao Local API의 좌표 -> 행정동 변환 결과를 사용하며, 지하철역 좌표를 행정동 코드(`dong_code`)에 연결한다. API 키 값은 코드, README, 커밋 로그, `.env.example` 어디에도 포함하지 않는다.
+
+원천 데이터와 역-행정동 매핑을 HDFS에 올린 뒤 전처리를 실행한다.
 
 ```bash
 bash scripts/upload_hdfs.sh
