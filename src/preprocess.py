@@ -38,6 +38,7 @@ def read_csv(spark, path):
 
 def write_parquet(df, path):
     df.write.mode("overwrite").parquet(path)
+    return df.sql_ctx.read.parquet(path)
 
 
 def safe_divide(numerator, denominator):
@@ -67,8 +68,7 @@ def build_clean_people(spark, hdfs_base_dir):
         .where(F.col("base_date").isNotNull())
         .where(F.col("dong_code").isNotNull())
     )
-    write_parquet(df, hdfs_base_dir + "/processed/clean_people")
-    return df
+    return write_parquet(df, hdfs_base_dir + "/processed/clean_people")
 
 
 def build_clean_subway(spark, hdfs_base_dir):
@@ -114,8 +114,7 @@ def build_clean_subway(spark, hdfs_base_dir):
         .where(F.col("transport_date").isNotNull())
         .where(F.col("station_name").isNotNull())
     )
-    write_parquet(df, hdfs_base_dir + "/processed/clean_subway")
-    return df
+    return write_parquet(df, hdfs_base_dir + "/processed/clean_subway")
 
 
 def build_clean_station_master(spark, hdfs_base_dir):
@@ -130,8 +129,7 @@ def build_clean_station_master(spark, hdfs_base_dir):
         .where(F.col("station_name").isNotNull())
         .dropDuplicates(["station_name", "line_name"])
     )
-    write_parquet(df, hdfs_base_dir + "/processed/clean_station_master")
-    return df
+    return write_parquet(df, hdfs_base_dir + "/processed/clean_station_master")
 
 
 def build_clean_market_area(spark, hdfs_base_dir):
@@ -149,8 +147,7 @@ def build_clean_market_area(spark, hdfs_base_dir):
         .where(F.col("market_code").isNotNull())
         .where(F.col("dong_code").isNotNull())
     )
-    write_parquet(df, hdfs_base_dir + "/processed/clean_market_area")
-    return df
+    return write_parquet(df, hdfs_base_dir + "/processed/clean_market_area")
 
 
 def build_clean_market_sales(spark, hdfs_base_dir):
@@ -184,16 +181,14 @@ def build_clean_market_sales(spark, hdfs_base_dir):
         .where(F.col("quarter_code").isNotNull())
         .where(F.col("market_code").isNotNull())
     )
-    write_parquet(df, hdfs_base_dir + "/processed/clean_market_sales")
-    return df
+    return write_parquet(df, hdfs_base_dir + "/processed/clean_market_sales")
 
 
 def build_market_dong_bridge(clean_market_area, hdfs_base_dir):
     df = clean_market_area.select(
         "market_code", "market_name", "dong_code", "dong_name"
     ).dropDuplicates()
-    write_parquet(df, hdfs_base_dir + "/processed/bridge/market_dong_bridge")
-    return df
+    return write_parquet(df, hdfs_base_dir + "/processed/bridge/market_dong_bridge")
 
 
 def build_station_dong_bridge(clean_station_master, clean_market_area, hdfs_base_dir):
@@ -205,7 +200,7 @@ def build_station_dong_bridge(clean_station_master, clean_market_area, hdfs_base
         F.regexp_replace(F.lower(F.trim(F.col("market_name"))), "\\s+", ""),
     )
     matched = (
-        station.crossJoin(market)
+        station.crossJoin(F.broadcast(market))
         .where(F.expr("instr(market_key, station_key) > 0"))
         .select(
             station.station_name,
@@ -215,8 +210,7 @@ def build_station_dong_bridge(clean_station_master, clean_market_area, hdfs_base
         )
         .dropDuplicates()
     )
-    write_parquet(matched, hdfs_base_dir + "/processed/bridge/station_dong_bridge")
-    return matched
+    return write_parquet(matched, hdfs_base_dir + "/processed/bridge/station_dong_bridge")
 
 
 def sales_time_slot_from_hour(hour_col):
@@ -243,33 +237,33 @@ def build_aggregates(
     dong_dim = market_dong_bridge.select("dong_code", "dong_name").dropDuplicates()
 
     people = (
-        clean_people.join(dong_dim, "dong_code", "inner")
+        clean_people.join(F.broadcast(dong_dim), "dong_code", "inner")
         .withColumn("quarter_code", quarter_from_date(F.col("base_date")))
         .groupBy("base_date", "quarter_code", "dong_code", "dong_name", "time_slot")
         .agg(F.sum("living_population").alias("living_population"))
     )
-    write_parquet(people, hdfs_base_dir + "/processed/agg/people_by_dong_time")
+    people = write_parquet(people, hdfs_base_dir + "/processed/agg/people_by_dong_time")
 
     subway = (
         clean_subway.where(F.col("boarding_type") == F.lit("하차"))
-        .join(station_dong_bridge, ["station_name", "line_name"], "inner")
+        .join(F.broadcast(station_dong_bridge), ["station_name", "line_name"], "inner")
         .withColumn("quarter_code", quarter_from_date(F.col("transport_date")))
         .groupBy(
             "transport_date", "quarter_code", "dong_code", "dong_name", "time_slot"
         )
         .agg(F.sum("passenger_count").alias("subway_inflow"))
     )
-    write_parquet(subway, hdfs_base_dir + "/processed/agg/subway_by_dong_time")
+    subway = write_parquet(subway, hdfs_base_dir + "/processed/agg/subway_by_dong_time")
 
     sales = (
-        clean_market_sales.join(market_dong_bridge, "market_code", "inner")
+        clean_market_sales.join(F.broadcast(market_dong_bridge), "market_code", "inner")
         .groupBy("quarter_code", "dong_code", "dong_name", "time_slot")
         .agg(
             F.sum("sales_amount").alias("sales_amount"),
             F.sum("sales_count").alias("sales_count"),
         )
     )
-    write_parquet(sales, hdfs_base_dir + "/processed/agg/sales_by_dong_time")
+    sales = write_parquet(sales, hdfs_base_dir + "/processed/agg/sales_by_dong_time")
 
     return people, subway, sales
 
@@ -337,6 +331,7 @@ def main():
 
     spark = (
         SparkSession.builder.appName("seoul-stickiness-preprocess")
+        .config("spark.sql.shuffle.partitions", "16")
         .enableHiveSupport()
         .getOrCreate()
     )
