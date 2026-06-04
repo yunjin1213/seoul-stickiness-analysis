@@ -1,8 +1,6 @@
 CREATE DATABASE IF NOT EXISTS seoul_stickiness;
 USE seoul_stickiness;
 
-SET hive.cli.print.header=false;
-
 dfs -rm -r -f ${hivevar:hdfs_base_dir}/results/top_subway_inflow;
 dfs -rm -r -f ${hivevar:hdfs_base_dir}/results/top_living_population;
 dfs -rm -r -f ${hivevar:hdfs_base_dir}/results/top_stay_index;
