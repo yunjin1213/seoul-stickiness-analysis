@@ -460,12 +460,12 @@ typed AS (
     dong_code,
     dong_name,
     CASE
-      WHEN night_conversion_tile = 1 THEN '야간형'
-      WHEN conversion_score_tile = 1 THEN '종합형'
-      WHEN consumption_index_tile = 1 THEN '소비전환형'
-      WHEN subway_inflow_tile = 1 AND stay_index_tile > 2 THEN '유입형'
-      WHEN stay_index_tile = 1 AND consumption_index_tile > 2 THEN '체류형'
-      ELSE '일반형'
+      WHEN night_conversion_tile = 1 THEN 'night_type'
+      WHEN conversion_score_tile = 1 THEN 'overall_type'
+      WHEN consumption_index_tile = 1 THEN 'consumption_type'
+      WHEN subway_inflow_tile = 1 AND stay_index_tile > 2 THEN 'inflow_type'
+      WHEN stay_index_tile = 1 AND consumption_index_tile > 2 THEN 'stay_type'
+      ELSE 'general_type'
     END AS market_type,
     avg_subway_inflow,
     avg_living_population,

@@ -312,7 +312,16 @@ dong_market_type
 - `consumption_index`: 생활인구 대비 매출 규모
 - `conversion_score`: `subway_inflow`, `living_population`, `sales_amount`를 분기·시간대 안에서 표준화해 합산한 종합 점수
 
-행정동별 상권 유형은 유입형, 체류형, 소비전환형, 종합형, 야간형 등 여러 특성을 동시에 가질 수 있으나, 본 분석에서는 우선순위 기반으로 대표 유형 하나를 부여한다. Hive CLI에서 한글명이 깨져 보일 수 있으므로 결과 해석과 조인은 `dong_code`를 기준 키로 사용한다.
+행정동별 상권 유형은 유입형, 체류형, 소비전환형, 종합형, 야간형 등 여러 특성을 동시에 가질 수 있으나, 본 분석에서는 우선순위 기반으로 대표 유형 하나를 부여한다. Hive CLI에서 한글명이 깨져 보일 수 있으므로 결과 해석과 조인은 `dong_code`를 기준 키로 사용한다. `dong_market_type`의 `market_type`은 CSV 호환성을 위해 ASCII 코드로 저장한다.
+
+| market_type | 한글 유형명 |
+| --- | --- |
+| `night_type` | 야간형 |
+| `overall_type` | 종합형 |
+| `consumption_type` | 소비전환형 |
+| `inflow_type` | 유입형 |
+| `stay_type` | 체류형 |
+| `general_type` | 일반형 |
 
 Hive external table은 기본적으로 HiveServer2의 HDFS 사용자(`hive`) 권한으로 등록된다. 따라서 `/user/maria_dev/seoul_stickiness`처럼 개인 사용자 HDFS 경로에 데이터를 올린 경우, 단순히 `chmod 777`로 전체 공개하지 않고 스크립트가 다음 ACL을 자동 적용한다.
 
