@@ -5,10 +5,20 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+source "${SCRIPT_DIR}/hdfs_permissions.sh"
 
 HDFS_USER="${HDFS_USER:-${USER:-maria_dev}}"
 HDFS_BASE_DIR="${HDFS_BASE_DIR:-/user/${HDFS_USER}/seoul_stickiness}"
 HDFS_RESULTS_DIR="${HDFS_BASE_DIR}/results"
+RESULT_NAMES=(
+  "top_subway_inflow"
+  "top_living_population"
+  "top_stay_index"
+  "top_consumption_index"
+  "top_conversion_score"
+  "time_slot_pattern"
+  "dong_market_type"
+)
 
 require_command() {
   local command_name="$1"
@@ -37,6 +47,14 @@ require_command hdfs
 echo "== Analysis settings =="
 echo "PROJECT_DIR=${PROJECT_DIR}"
 echo "HDFS_BASE_DIR=${HDFS_BASE_DIR}"
+echo "HIVE_HDFS_USER=${HIVE_HDFS_USER}"
+
+echo "== Prepare result directories =="
+hdfs dfs -mkdir -p "${HDFS_RESULTS_DIR}"
+grant_hive_hdfs_acl "${HDFS_RESULTS_DIR}"
+for result_name in "${RESULT_NAMES[@]}"; do
+  hdfs dfs -rm -r -f "${HDFS_RESULTS_DIR}/${result_name}" >/dev/null 2>&1 || true
+done
 
 echo "== Run Hive analysis queries =="
 hive \
@@ -46,13 +64,9 @@ hive \
 echo "== Result directories =="
 hdfs dfs -ls "${HDFS_RESULTS_DIR}" || true
 
-print_result_head "top_subway_inflow"
-print_result_head "top_living_population"
-print_result_head "top_stay_index"
-print_result_head "top_consumption_index"
-print_result_head "top_conversion_score"
-print_result_head "time_slot_pattern"
-print_result_head "dong_market_type"
+for result_name in "${RESULT_NAMES[@]}"; do
+  print_result_head "${result_name}"
+done
 
 echo
 echo "== Done =="

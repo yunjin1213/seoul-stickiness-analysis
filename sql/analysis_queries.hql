@@ -1,14 +1,6 @@
 CREATE DATABASE IF NOT EXISTS seoul_stickiness;
 USE seoul_stickiness;
 
-dfs -rm -r -f ${hivevar:hdfs_base_dir}/results/top_subway_inflow;
-dfs -rm -r -f ${hivevar:hdfs_base_dir}/results/top_living_population;
-dfs -rm -r -f ${hivevar:hdfs_base_dir}/results/top_stay_index;
-dfs -rm -r -f ${hivevar:hdfs_base_dir}/results/top_consumption_index;
-dfs -rm -r -f ${hivevar:hdfs_base_dir}/results/top_conversion_score;
-dfs -rm -r -f ${hivevar:hdfs_base_dir}/results/time_slot_pattern;
-dfs -rm -r -f ${hivevar:hdfs_base_dir}/results/dong_market_type;
-
 WITH dong_summary AS (
   SELECT
     dong_code,
