@@ -349,6 +349,10 @@ top_consumption_index
 top_conversion_score
 time_slot_pattern
 dong_market_type
+top_dong_time_profile
+dong_service_sales_mix
+top_dong_service_top5
+night_sales_pattern
 ```
 
 `scripts/export_results.sh`는 위 HDFS 결과를 `results_csv/*.csv`로 병합한다. `src/visualize_results.py`는 `results_csv/`를 읽어 `figures/*.png`와 `summary_csv/*.csv`를 생성한다. 입출력 경로를 바꾸려면 다음처럼 실행한다.
@@ -397,6 +401,19 @@ python3 src/visualize_results.py
 | `inflow_type` | 유입형 |
 | `stay_type` | 체류형 |
 | `general_type` | 일반형 |
+
+### 해석 보강 분석
+
+기존 7개 핵심 질문은 행정동 단위 순위와 유형 분류로 답한다. 다만 결과 해석이 특정 지역 이미지나 주관적 설명에 치우치지 않도록, 상권 업종 매출 구조와 시간대별 지표를 보조 근거로 함께 생성한다.
+
+| 결과 경로 | 목적 |
+| --- | --- |
+| `top_dong_time_profile` | `conversion_score` 상위 행정동의 분기·시간대별 유입, 생활인구, 매출, 지표 값을 확인한다. |
+| `dong_service_sales_mix` | 행정동별 업종 매출 구성과 업종별 매출 비중을 확인한다. |
+| `top_dong_service_top5` | 역삼1동, 서교동, 여의동, 제기동 및 종합 경쟁력 상위 행정동의 주요 업종 TOP 5를 확인한다. |
+| `night_sales_pattern` | 행정동별 전체 매출 중 `21_24` 시간대 매출 비중을 확인해 야간형 해석의 보조 근거로 사용한다. |
+
+이 보강 분석은 결과의 “원인”을 단정하기 위한 것이 아니라, 특정 행정동이 어떤 시간대와 업종 매출 구조에서 특징을 보이는지 설명하기 위한 보조 자료이다. 분석 단위는 계속 행정동(`dong_code`)이며, 생활인구를 상권 면적 기준으로 재배분하지 않는다.
 
 Hive external table은 기본적으로 HiveServer2의 HDFS 사용자(`hive`) 권한으로 등록된다. 따라서 `/user/maria_dev/seoul_stickiness`처럼 개인 사용자 HDFS 경로에 데이터를 올린 경우, 단순히 `chmod 777`로 전체 공개하지 않고 스크립트가 다음 ACL을 자동 적용한다.
 

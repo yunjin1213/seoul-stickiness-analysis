@@ -536,3 +536,335 @@ FROM (
   FROM typed
 ) output_rows
 ORDER BY sort_order, type_sort, dong_code;
+
+WITH dong_summary AS (
+  SELECT
+    dong_code,
+    MAX(dong_name) AS dong_name,
+    AVG(conversion_score) AS avg_conversion_score
+  FROM analysis_mart_quarter
+  GROUP BY dong_code
+),
+top_dong AS (
+  SELECT
+    ROW_NUMBER() OVER (ORDER BY avg_conversion_score DESC) AS rank_no,
+    dong_code,
+    dong_name
+  FROM dong_summary
+  WHERE avg_conversion_score IS NOT NULL
+),
+profile AS (
+  SELECT
+    td.rank_no,
+    amq.quarter_code,
+    amq.dong_code,
+    MAX(amq.dong_name) AS dong_name,
+    amq.time_slot,
+    AVG(amq.subway_inflow) AS subway_inflow,
+    AVG(amq.living_population) AS living_population,
+    SUM(amq.sales_amount) AS sales_amount,
+    AVG(amq.stay_index) AS stay_index,
+    AVG(amq.consumption_index) AS consumption_index,
+    AVG(amq.conversion_score) AS conversion_score
+  FROM analysis_mart_quarter amq
+  INNER JOIN top_dong td
+    ON amq.dong_code = td.dong_code
+  WHERE td.rank_no <= 10
+  GROUP BY td.rank_no, amq.quarter_code, amq.dong_code, amq.time_slot
+)
+INSERT OVERWRITE DIRECTORY '${hivevar:hdfs_base_dir}/results/top_dong_time_profile'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+SELECT
+  rank_no,
+  quarter_code,
+  dong_code,
+  dong_name,
+  time_slot,
+  subway_inflow,
+  living_population,
+  sales_amount,
+  stay_index,
+  consumption_index,
+  conversion_score
+FROM (
+  SELECT
+    0 AS sort_order,
+    0 AS rank_sort,
+    '0000Q0' AS quarter_sort,
+    '00_00' AS time_sort,
+    'rank' AS rank_no,
+    'quarter_code' AS quarter_code,
+    'dong_code' AS dong_code,
+    'dong_name' AS dong_name,
+    'time_slot' AS time_slot,
+    'subway_inflow' AS subway_inflow,
+    'living_population' AS living_population,
+    'sales_amount' AS sales_amount,
+    'stay_index' AS stay_index,
+    'consumption_index' AS consumption_index,
+    'conversion_score' AS conversion_score
+  UNION ALL
+  SELECT
+    1 AS sort_order,
+    rank_no AS rank_sort,
+    quarter_code AS quarter_sort,
+    time_slot AS time_sort,
+    CAST(rank_no AS STRING) AS rank_no,
+    quarter_code,
+    dong_code,
+    dong_name,
+    time_slot,
+    CAST(subway_inflow AS STRING) AS subway_inflow,
+    CAST(living_population AS STRING) AS living_population,
+    CAST(sales_amount AS STRING) AS sales_amount,
+    CAST(stay_index AS STRING) AS stay_index,
+    CAST(consumption_index AS STRING) AS consumption_index,
+    CAST(conversion_score AS STRING) AS conversion_score
+  FROM profile
+) output_rows
+ORDER BY sort_order, rank_sort, quarter_sort, time_sort;
+
+WITH service_sales AS (
+  SELECT
+    mdb.dong_code,
+    MAX(mdb.dong_name) AS dong_name,
+    cms.service_type,
+    SUM(cms.sales_amount) AS service_sales_amount
+  FROM clean_market_sales cms
+  INNER JOIN market_dong_bridge mdb
+    ON cms.market_code = mdb.market_code
+  WHERE cms.service_type IS NOT NULL
+  GROUP BY mdb.dong_code, cms.service_type
+),
+service_mix AS (
+  SELECT
+    dong_code,
+    dong_name,
+    service_type,
+    service_sales_amount,
+    SUM(service_sales_amount) OVER (PARTITION BY dong_code) AS total_sales_amount
+  FROM service_sales
+),
+ranked AS (
+  SELECT
+    ROW_NUMBER() OVER (
+      PARTITION BY dong_code
+      ORDER BY service_sales_amount DESC
+    ) AS service_rank,
+    dong_code,
+    dong_name,
+    service_type,
+    service_sales_amount,
+    total_sales_amount,
+    CASE
+      WHEN total_sales_amount > 0
+      THEN CAST(service_sales_amount AS DOUBLE) / CAST(total_sales_amount AS DOUBLE)
+      ELSE NULL
+    END AS service_sales_ratio
+  FROM service_mix
+)
+INSERT OVERWRITE DIRECTORY '${hivevar:hdfs_base_dir}/results/dong_service_sales_mix'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+SELECT
+  dong_code,
+  dong_name,
+  service_type,
+  service_rank,
+  service_sales_amount,
+  total_sales_amount,
+  service_sales_ratio
+FROM (
+  SELECT
+    0 AS sort_order,
+    '00000000' AS dong_sort,
+    0 AS rank_sort,
+    'dong_code' AS dong_code,
+    'dong_name' AS dong_name,
+    'service_type' AS service_type,
+    'service_rank' AS service_rank,
+    'service_sales_amount' AS service_sales_amount,
+    'total_sales_amount' AS total_sales_amount,
+    'service_sales_ratio' AS service_sales_ratio
+  UNION ALL
+  SELECT
+    1 AS sort_order,
+    dong_code AS dong_sort,
+    service_rank AS rank_sort,
+    dong_code,
+    dong_name,
+    service_type,
+    CAST(service_rank AS STRING) AS service_rank,
+    CAST(service_sales_amount AS STRING) AS service_sales_amount,
+    CAST(total_sales_amount AS STRING) AS total_sales_amount,
+    CAST(service_sales_ratio AS STRING) AS service_sales_ratio
+  FROM ranked
+  WHERE service_rank <= 10
+) output_rows
+ORDER BY sort_order, dong_sort, rank_sort;
+
+WITH dong_summary AS (
+  SELECT
+    dong_code,
+    AVG(conversion_score) AS avg_conversion_score
+  FROM analysis_mart_quarter
+  GROUP BY dong_code
+),
+top_conversion_dong AS (
+  SELECT
+    dong_code
+  FROM (
+    SELECT
+      ROW_NUMBER() OVER (ORDER BY avg_conversion_score DESC) AS rank_no,
+      dong_code
+    FROM dong_summary
+    WHERE avg_conversion_score IS NOT NULL
+  ) ranked
+  WHERE rank_no <= 10
+),
+target_dong AS (
+  SELECT '11680640' AS dong_code
+  UNION ALL SELECT '11440660' AS dong_code
+  UNION ALL SELECT '11560540' AS dong_code
+  UNION ALL SELECT '11230545' AS dong_code
+  UNION ALL SELECT dong_code FROM top_conversion_dong
+),
+service_sales AS (
+  SELECT
+    mdb.dong_code,
+    MAX(mdb.dong_name) AS dong_name,
+    cms.service_type,
+    SUM(cms.sales_amount) AS sales_amount
+  FROM clean_market_sales cms
+  INNER JOIN market_dong_bridge mdb
+    ON cms.market_code = mdb.market_code
+  INNER JOIN (
+    SELECT DISTINCT dong_code FROM target_dong
+  ) td
+    ON mdb.dong_code = td.dong_code
+  WHERE cms.service_type IS NOT NULL
+  GROUP BY mdb.dong_code, cms.service_type
+),
+ranked AS (
+  SELECT
+    ROW_NUMBER() OVER (
+      PARTITION BY dong_code
+      ORDER BY sales_amount DESC
+    ) AS service_rank,
+    dong_code,
+    dong_name,
+    service_type,
+    sales_amount
+  FROM service_sales
+)
+INSERT OVERWRITE DIRECTORY '${hivevar:hdfs_base_dir}/results/top_dong_service_top5'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+SELECT
+  dong_code,
+  dong_name,
+  service_type,
+  sales_amount,
+  service_rank
+FROM (
+  SELECT
+    0 AS sort_order,
+    '00000000' AS dong_sort,
+    0 AS rank_sort,
+    'dong_code' AS dong_code,
+    'dong_name' AS dong_name,
+    'service_type' AS service_type,
+    'sales_amount' AS sales_amount,
+    'service_rank' AS service_rank
+  UNION ALL
+  SELECT
+    1 AS sort_order,
+    dong_code AS dong_sort,
+    service_rank AS rank_sort,
+    dong_code,
+    dong_name,
+    service_type,
+    CAST(sales_amount AS STRING) AS sales_amount,
+    CAST(service_rank AS STRING) AS service_rank
+  FROM ranked
+  WHERE service_rank <= 5
+) output_rows
+ORDER BY sort_order, dong_sort, rank_sort;
+
+WITH dong_time_sales AS (
+  SELECT
+    dong_code,
+    MAX(dong_name) AS dong_name,
+    time_slot,
+    SUM(sales_amount) AS time_slot_sales_amount
+  FROM analysis_mart_quarter
+  GROUP BY dong_code, time_slot
+),
+night_sales AS (
+  SELECT
+    dong_code,
+    MAX(dong_name) AS dong_name,
+    SUM(time_slot_sales_amount) AS total_sales_amount,
+    SUM(
+      CASE
+        WHEN time_slot = '21_24' THEN time_slot_sales_amount
+        ELSE 0
+      END
+    ) AS night_sales_amount
+  FROM dong_time_sales
+  GROUP BY dong_code
+),
+ranked AS (
+  SELECT
+    ROW_NUMBER() OVER (
+      ORDER BY
+        CASE
+          WHEN total_sales_amount > 0
+          THEN CAST(night_sales_amount AS DOUBLE) / CAST(total_sales_amount AS DOUBLE)
+          ELSE NULL
+        END DESC,
+        total_sales_amount DESC
+    ) AS rank_no,
+    dong_code,
+    dong_name,
+    total_sales_amount,
+    night_sales_amount,
+    CASE
+      WHEN total_sales_amount > 0
+      THEN CAST(night_sales_amount AS DOUBLE) / CAST(total_sales_amount AS DOUBLE)
+      ELSE NULL
+    END AS night_sales_ratio
+  FROM night_sales
+  WHERE total_sales_amount > 0
+)
+INSERT OVERWRITE DIRECTORY '${hivevar:hdfs_base_dir}/results/night_sales_pattern'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+SELECT
+  rank_no,
+  dong_code,
+  dong_name,
+  total_sales_amount,
+  night_sales_amount,
+  night_sales_ratio
+FROM (
+  SELECT
+    0 AS sort_order,
+    0 AS rank_sort,
+    'rank' AS rank_no,
+    'dong_code' AS dong_code,
+    'dong_name' AS dong_name,
+    'total_sales_amount' AS total_sales_amount,
+    'night_sales_amount' AS night_sales_amount,
+    'night_sales_ratio' AS night_sales_ratio
+  UNION ALL
+  SELECT
+    1 AS sort_order,
+    rank_no AS rank_sort,
+    CAST(rank_no AS STRING) AS rank_no,
+    dong_code,
+    dong_name,
+    CAST(total_sales_amount AS STRING) AS total_sales_amount,
+    CAST(night_sales_amount AS STRING) AS night_sales_amount,
+    CAST(night_sales_ratio AS STRING) AS night_sales_ratio
+  FROM ranked
+  WHERE rank_no <= 50
+) output_rows
+ORDER BY sort_order, rank_sort;

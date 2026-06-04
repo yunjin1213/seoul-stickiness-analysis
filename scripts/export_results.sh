@@ -18,6 +18,10 @@ RESULT_NAMES=(
   "top_conversion_score"
   "time_slot_pattern"
   "dong_market_type"
+  "top_dong_time_profile"
+  "dong_service_sales_mix"
+  "top_dong_service_top5"
+  "night_sales_pattern"
 )
 
 require_command() {
