@@ -296,7 +296,38 @@ pip install -r requirements.txt
 python3 src/visualize_results.py
 ```
 
-전체 실행 순서는 다음과 같다.
+전체 파이프라인은 VM에서 다음 명령 하나로 실행할 수 있다. 기본 실행 범위는 데이터 다운로드, Kakao 역-행정동 매핑 생성, HDFS 업로드, Spark 전처리, Hive 분석, HDFS 결과의 로컬 CSV 병합까지다.
+
+```bash
+bash scripts/run_pipeline.sh
+```
+
+이미 다운로드와 HDFS 업로드가 끝난 상태에서 전처리와 분석만 다시 실행하려면 다음처럼 단계별 플래그를 끈다.
+
+```bash
+RUN_DOWNLOAD=0 \
+RUN_MAPPING=0 \
+RUN_UPLOAD=0 \
+bash scripts/run_pipeline.sh
+```
+
+분석 쿼리와 결과 CSV 병합만 다시 실행하려면 다음처럼 실행한다.
+
+```bash
+RUN_DOWNLOAD=0 \
+RUN_MAPPING=0 \
+RUN_UPLOAD=0 \
+RUN_PREPROCESS=0 \
+bash scripts/run_pipeline.sh
+```
+
+그래프 생성까지 같은 환경에서 실행하려면 `pandas`, `matplotlib`이 설치되어 있어야 하며, `RUN_VISUALIZE=1`을 추가한다.
+
+```bash
+RUN_VISUALIZE=1 bash scripts/run_pipeline.sh
+```
+
+단계별로 직접 실행할 수도 있다.
 
 ```bash
 bash scripts/download_data.sh
