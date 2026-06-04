@@ -296,7 +296,7 @@ pip install -r requirements.txt
 python3 src/visualize_results.py
 ```
 
-전체 파이프라인은 VM에서 다음 명령 하나로 실행할 수 있다. 기본 실행 범위는 데이터 다운로드, Kakao 역-행정동 매핑 생성, HDFS 업로드, Spark 전처리, Hive 분석, HDFS 결과의 로컬 CSV 병합까지다.
+전체 파이프라인은 VM에서 다음 명령 하나로 실행할 수 있다. `bash scripts/run_pipeline.sh`를 실행하면 데이터 다운로드부터 전처리, 분석 결과 도출, 로컬 CSV 병합까지 전체 과정이 순서대로 진행된다. 기본 실행 범위는 데이터 다운로드, Kakao 역-행정동 매핑 생성, HDFS 업로드, Spark 전처리, Hive 분석, HDFS 결과의 로컬 CSV 병합까지다.
 
 ```bash
 bash scripts/run_pipeline.sh
