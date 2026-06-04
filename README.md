@@ -353,6 +353,7 @@ top_dong_time_profile
 dong_service_sales_mix
 top_dong_service_top5
 night_sales_pattern
+result_interpretation_support
 ```
 
 `scripts/export_results.sh`는 위 HDFS 결과를 `results_csv/*.csv`로 병합한다. `src/visualize_results.py`는 `results_csv/`를 읽어 `figures/*.png`와 `summary_csv/*.csv`를 생성한다. 입출력 경로를 바꾸려면 다음처럼 실행한다.
@@ -412,6 +413,7 @@ python3 src/visualize_results.py
 | `dong_service_sales_mix` | 행정동별 업종 매출 구성과 업종별 매출 비중을 확인한다. |
 | `top_dong_service_top5` | 역삼1동, 서교동, 여의동, 제기동 및 종합 경쟁력 상위 행정동의 주요 업종 TOP 5를 확인한다. |
 | `night_sales_pattern` | 행정동별 전체 매출 중 `21_24` 시간대 매출 비중을 확인해 야간형 해석의 보조 근거로 사용한다. |
+| `result_interpretation_support` | 각 핵심 지표 TOP 행정동의 포함 상권명, 업종별 매출 TOP 5, 우세 시간대를 함께 확인한다. |
 
 이 보강 분석은 결과의 “원인”을 단정하기 위한 것이 아니라, 특정 행정동이 어떤 시간대와 업종 매출 구조에서 특징을 보이는지 설명하기 위한 보조 자료이다. 분석 단위는 계속 행정동(`dong_code`)이며, 생활인구를 상권 면적 기준으로 재배분하지 않는다.
 

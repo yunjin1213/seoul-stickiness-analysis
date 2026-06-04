@@ -22,6 +22,7 @@ RESULT_NAMES=(
   "dong_service_sales_mix"
   "top_dong_service_top5"
   "night_sales_pattern"
+  "result_interpretation_support"
 )
 
 require_command() {

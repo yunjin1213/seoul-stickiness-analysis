@@ -868,3 +868,226 @@ FROM (
   WHERE rank_no <= 50
 ) output_rows
 ORDER BY sort_order, rank_sort;
+
+WITH dong_summary AS (
+  SELECT
+    dong_code,
+    MAX(dong_name) AS dong_name,
+    AVG(subway_inflow) AS avg_subway_inflow,
+    AVG(living_population) AS avg_living_population,
+    AVG(stay_index) AS avg_stay_index,
+    AVG(consumption_index) AS avg_consumption_index,
+    AVG(conversion_score) AS avg_conversion_score
+  FROM analysis_mart_quarter
+  GROUP BY dong_code
+),
+top_subway AS (
+  SELECT
+    1 AS metric_order,
+    'subway_inflow' AS high_metric,
+    dong_code,
+    dong_name
+  FROM (
+    SELECT
+      ROW_NUMBER() OVER (ORDER BY avg_subway_inflow DESC) AS rank_no,
+      dong_code,
+      dong_name
+    FROM dong_summary
+    WHERE avg_subway_inflow IS NOT NULL
+  ) ranked
+  WHERE rank_no = 1
+),
+top_living AS (
+  SELECT
+    2 AS metric_order,
+    'living_population' AS high_metric,
+    dong_code,
+    dong_name
+  FROM (
+    SELECT
+      ROW_NUMBER() OVER (ORDER BY avg_living_population DESC) AS rank_no,
+      dong_code,
+      dong_name
+    FROM dong_summary
+    WHERE avg_living_population IS NOT NULL
+  ) ranked
+  WHERE rank_no = 1
+),
+top_stay AS (
+  SELECT
+    3 AS metric_order,
+    'stay_index' AS high_metric,
+    dong_code,
+    dong_name
+  FROM (
+    SELECT
+      ROW_NUMBER() OVER (ORDER BY avg_stay_index DESC) AS rank_no,
+      dong_code,
+      dong_name
+    FROM dong_summary
+    WHERE avg_stay_index IS NOT NULL
+  ) ranked
+  WHERE rank_no = 1
+),
+top_consumption AS (
+  SELECT
+    4 AS metric_order,
+    'consumption_index' AS high_metric,
+    dong_code,
+    dong_name
+  FROM (
+    SELECT
+      ROW_NUMBER() OVER (ORDER BY avg_consumption_index DESC) AS rank_no,
+      dong_code,
+      dong_name
+    FROM dong_summary
+    WHERE avg_consumption_index IS NOT NULL
+  ) ranked
+  WHERE rank_no = 1
+),
+top_conversion AS (
+  SELECT
+    5 AS metric_order,
+    'conversion_score' AS high_metric,
+    dong_code,
+    dong_name
+  FROM (
+    SELECT
+      ROW_NUMBER() OVER (ORDER BY avg_conversion_score DESC) AS rank_no,
+      dong_code,
+      dong_name
+    FROM dong_summary
+    WHERE avg_conversion_score IS NOT NULL
+  ) ranked
+  WHERE rank_no = 1
+),
+target_dong AS (
+  SELECT * FROM top_subway
+  UNION ALL SELECT * FROM top_living
+  UNION ALL SELECT * FROM top_stay
+  UNION ALL SELECT * FROM top_consumption
+  UNION ALL SELECT * FROM top_conversion
+),
+market_names AS (
+  SELECT
+    td.dong_code,
+    concat_ws('; ', sort_array(collect_set(mdb.market_name))) AS market_names
+  FROM (
+    SELECT DISTINCT dong_code FROM target_dong
+  ) td
+  LEFT JOIN market_dong_bridge mdb
+    ON td.dong_code = mdb.dong_code
+  WHERE mdb.market_name IS NOT NULL
+  GROUP BY td.dong_code
+),
+service_sales AS (
+  SELECT
+    mdb.dong_code,
+    cms.service_type,
+    SUM(cms.sales_amount) AS sales_amount
+  FROM clean_market_sales cms
+  INNER JOIN market_dong_bridge mdb
+    ON cms.market_code = mdb.market_code
+  INNER JOIN (
+    SELECT DISTINCT dong_code FROM target_dong
+  ) td
+    ON mdb.dong_code = td.dong_code
+  WHERE cms.service_type IS NOT NULL
+  GROUP BY mdb.dong_code, cms.service_type
+),
+ranked_service AS (
+  SELECT
+    ROW_NUMBER() OVER (
+      PARTITION BY dong_code
+      ORDER BY sales_amount DESC
+    ) AS service_rank,
+    dong_code,
+    service_type
+  FROM service_sales
+),
+top_service_types AS (
+  SELECT
+    dong_code,
+    concat_ws('; ', collect_list(service_type)) AS top_service_types
+  FROM (
+    SELECT
+      dong_code,
+      service_type,
+      service_rank
+    FROM ranked_service
+    WHERE service_rank <= 5
+    DISTRIBUTE BY dong_code
+    SORT BY dong_code, service_rank
+  ) sorted_services
+  GROUP BY dong_code
+),
+time_summary AS (
+  SELECT
+    amq.dong_code,
+    amq.time_slot,
+    AVG(amq.conversion_score) AS avg_conversion_score
+  FROM analysis_mart_quarter amq
+  INNER JOIN (
+    SELECT DISTINCT dong_code FROM target_dong
+  ) td
+    ON amq.dong_code = td.dong_code
+  GROUP BY amq.dong_code, amq.time_slot
+),
+ranked_time AS (
+  SELECT
+    ROW_NUMBER() OVER (
+      PARTITION BY dong_code
+      ORDER BY avg_conversion_score DESC
+    ) AS time_rank,
+    dong_code,
+    time_slot
+  FROM time_summary
+  WHERE avg_conversion_score IS NOT NULL
+),
+dominant_time AS (
+  SELECT
+    dong_code,
+    time_slot AS dominant_time_slot
+  FROM ranked_time
+  WHERE time_rank = 1
+)
+INSERT OVERWRITE DIRECTORY '${hivevar:hdfs_base_dir}/results/result_interpretation_support'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+SELECT
+  dong_code,
+  dong_name,
+  high_metric,
+  market_names,
+  top_service_types,
+  dominant_time_slot
+FROM (
+  SELECT
+    0 AS sort_order,
+    0 AS metric_sort,
+    '00000000' AS dong_sort,
+    'dong_code' AS dong_code,
+    'dong_name' AS dong_name,
+    'high_metric' AS high_metric,
+    'market_names' AS market_names,
+    'top_service_types' AS top_service_types,
+    'dominant_time_slot' AS dominant_time_slot
+  UNION ALL
+  SELECT
+    1 AS sort_order,
+    td.metric_order AS metric_sort,
+    td.dong_code AS dong_sort,
+    td.dong_code,
+    td.dong_name,
+    td.high_metric,
+    COALESCE(mn.market_names, '') AS market_names,
+    COALESCE(tst.top_service_types, '') AS top_service_types,
+    COALESCE(dt.dominant_time_slot, '') AS dominant_time_slot
+  FROM target_dong td
+  LEFT JOIN market_names mn
+    ON td.dong_code = mn.dong_code
+  LEFT JOIN top_service_types tst
+    ON td.dong_code = tst.dong_code
+  LEFT JOIN dominant_time dt
+    ON td.dong_code = dt.dong_code
+) output_rows
+ORDER BY sort_order, metric_sort, dong_sort;
