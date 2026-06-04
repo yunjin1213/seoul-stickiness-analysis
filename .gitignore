@@ -2,3 +2,7 @@
 preprocess.log
 __pycache__/
 *.pyc
+.venv/
+results_csv/
+figures/
+summary_csv/

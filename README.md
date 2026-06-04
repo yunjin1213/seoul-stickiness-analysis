@@ -207,7 +207,7 @@ Consumption Index = 매출 / 생활인구
 **Conversion Score**
 
 ```text
-Conversion Score = 표준화(Stay Index) + 표준화(Consumption Index)
+Conversion Score = 표준화(Subway Inflow) + 표준화(Living Population) + 표준화(Sales Amount)
 ```
 
 유입된 사람이 체류와 소비로 얼마나 이어지는지 권역 단위로 비교한다.
@@ -284,6 +284,18 @@ bash scripts/run_preprocess.sh
 bash scripts/run_analysis.sh
 ```
 
+분석 결과를 로컬 CSV로 병합한 뒤 그래프와 발표용 요약 CSV를 생성한다.
+
+```bash
+bash scripts/export_results.sh
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+python3 src/visualize_results.py
+```
+
 전체 실행 순서는 다음과 같다.
 
 ```bash
@@ -292,6 +304,8 @@ bash scripts/create_station_dong_mapping.sh
 bash scripts/upload_hdfs.sh
 bash scripts/run_preprocess.sh
 bash scripts/run_analysis.sh
+bash scripts/export_results.sh
+python3 src/visualize_results.py
 ```
 
 분석 결과는 HDFS의 `${HDFS_BASE_DIR}/results` 아래에 CSV 디렉터리로 저장된다.
@@ -304,6 +318,15 @@ top_consumption_index
 top_conversion_score
 time_slot_pattern
 dong_market_type
+```
+
+`scripts/export_results.sh`는 위 HDFS 결과를 `results_csv/*.csv`로 병합한다. `src/visualize_results.py`는 `results_csv/`를 읽어 `figures/*.png`와 `summary_csv/*.csv`를 생성한다. 입출력 경로를 바꾸려면 다음처럼 실행한다.
+
+```bash
+python3 src/visualize_results.py \
+  --input-dir results_csv \
+  --figure-dir figures \
+  --summary-dir summary_csv
 ```
 
 분석 지표의 해석은 다음과 같다.
