@@ -278,6 +278,42 @@ bash scripts/upload_hdfs.sh
 bash scripts/run_preprocess.sh
 ```
 
+전처리가 끝나면 Hive 분석 쿼리를 실행해 발표/시각화용 결과를 생성한다.
+
+```bash
+bash scripts/run_analysis.sh
+```
+
+전체 실행 순서는 다음과 같다.
+
+```bash
+bash scripts/download_data.sh
+bash scripts/create_station_dong_mapping.sh
+bash scripts/upload_hdfs.sh
+bash scripts/run_preprocess.sh
+bash scripts/run_analysis.sh
+```
+
+분석 결과는 HDFS의 `${HDFS_BASE_DIR}/results` 아래에 CSV 디렉터리로 저장된다.
+
+```text
+top_subway_inflow
+top_living_population
+top_stay_index
+top_consumption_index
+top_conversion_score
+time_slot_pattern
+dong_market_type
+```
+
+분석 지표의 해석은 다음과 같다.
+
+- `stay_index`: 지하철 유입 대비 생활인구 규모
+- `consumption_index`: 생활인구 대비 매출 규모
+- `conversion_score`: `subway_inflow`, `living_population`, `sales_amount`를 분기·시간대 안에서 표준화해 합산한 종합 점수
+
+행정동별 상권 유형은 유입형, 체류형, 소비전환형, 종합형, 야간형 등 여러 특성을 동시에 가질 수 있으나, 본 분석에서는 우선순위 기반으로 대표 유형 하나를 부여한다. Hive CLI에서 한글명이 깨져 보일 수 있으므로 결과 해석과 조인은 `dong_code`를 기준 키로 사용한다.
+
 Hive external table은 기본적으로 HiveServer2의 HDFS 사용자(`hive`) 권한으로 등록된다. 따라서 `/user/maria_dev/seoul_stickiness`처럼 개인 사용자 HDFS 경로에 데이터를 올린 경우, 단순히 `chmod 777`로 전체 공개하지 않고 스크립트가 다음 ACL을 자동 적용한다.
 
 ```text
