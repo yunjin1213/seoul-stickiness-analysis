@@ -3,6 +3,16 @@ preprocess.log
 __pycache__/
 *.pyc
 .venv/
+
+# 원본/산출 데이터 제외
+data/raw/
+data/processed/
+data/external/
+*.tsv
+*.xlsx
+*.parquet
+*.zip
+*.gz
 results_csv/
 figures/
 summary_csv/
