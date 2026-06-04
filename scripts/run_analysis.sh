@@ -51,10 +51,10 @@ echo "HIVE_HDFS_USER=${HIVE_HDFS_USER}"
 
 echo "== Prepare result directories =="
 hdfs dfs -mkdir -p "${HDFS_RESULTS_DIR}"
-grant_hive_hdfs_acl "${HDFS_RESULTS_DIR}"
 for result_name in "${RESULT_NAMES[@]}"; do
   hdfs dfs -rm -r -f "${HDFS_RESULTS_DIR}/${result_name}" >/dev/null 2>&1 || true
 done
+grant_hive_hdfs_acl "${HDFS_RESULTS_DIR}"
 
 echo "== Run Hive analysis queries =="
 hive \
