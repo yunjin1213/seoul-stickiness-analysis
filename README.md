@@ -329,6 +329,27 @@ python3 src/visualize_results.py \
   --summary-dir summary_csv
 ```
 
+원격 VM에서 생성한 `results_csv`를 Mac 로컬로 가져올 때는 두 단계로 복사한다. 먼저 바깥 Ubuntu 계정에서 내부 컨테이너의 결과를 가져온다.
+
+```bash
+scp -P 2222 -r maria_dev@localhost:/home/maria_dev/seoul-stickiness-analysis/results_csv /home/ubuntu/
+```
+
+그 다음 Mac 터미널에서 Ubuntu 계정의 결과를 현재 디렉터리로 가져온다.
+
+```bash
+scp -P 30430 -r ubuntu@access2.bluerack.org:/home/ubuntu/results_csv .
+```
+
+Mac 로컬의 프로젝트 루트에 `results_csv/`를 둔 뒤 시각화를 실행한다.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python3 src/visualize_results.py
+```
+
 분석 지표의 해석은 다음과 같다.
 
 - `stay_index`: 지하철 유입 대비 생활인구 규모
