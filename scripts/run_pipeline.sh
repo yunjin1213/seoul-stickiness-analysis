@@ -12,7 +12,6 @@ set -euo pipefail
 #   RUN_PREPROCESS=0   Skip Spark preprocessing
 #   RUN_ANALYSIS=0     Skip Hive analysis queries
 #   RUN_EXPORT=0       Skip HDFS results export to results_csv
-#   RUN_VISUALIZE=1    Also run local visualization after export
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -23,7 +22,6 @@ RUN_UPLOAD="${RUN_UPLOAD:-1}"
 RUN_PREPROCESS="${RUN_PREPROCESS:-1}"
 RUN_ANALYSIS="${RUN_ANALYSIS:-1}"
 RUN_EXPORT="${RUN_EXPORT:-1}"
-RUN_VISUALIZE="${RUN_VISUALIZE:-0}"
 
 run_step() {
   local stage_name="$1"
@@ -59,7 +57,6 @@ echo "RUN_UPLOAD=${RUN_UPLOAD}"
 echo "RUN_PREPROCESS=${RUN_PREPROCESS}"
 echo "RUN_ANALYSIS=${RUN_ANALYSIS}"
 echo "RUN_EXPORT=${RUN_EXPORT}"
-echo "RUN_VISUALIZE=${RUN_VISUALIZE}"
 
 run_optional_step "${RUN_DOWNLOAD}" "Download public datasets" \
   bash "${SCRIPT_DIR}/download_data.sh"
@@ -79,18 +76,7 @@ run_optional_step "${RUN_ANALYSIS}" "Run Hive analysis queries" \
 run_optional_step "${RUN_EXPORT}" "Export HDFS results to local CSV" \
   bash "${SCRIPT_DIR}/export_results.sh"
 
-if [[ "${RUN_VISUALIZE}" == "1" ]]; then
-  run_step "Create local figures and summary CSVs" \
-    python3 "${PROJECT_DIR}/src/visualize_results.py"
-else
-  echo "[skip] Create local figures and summary CSVs"
-fi
-
 echo
 echo "== Pipeline done =="
 echo "HDFS results: ${HDFS_BASE_DIR:-/user/${USER:-maria_dev}/seoul_stickiness}/results"
 echo "Local CSV results: ${LOCAL_RESULTS_DIR:-${PROJECT_DIR}/results_csv}"
-if [[ "${RUN_VISUALIZE}" == "1" ]]; then
-  echo "Figures: ${PROJECT_DIR}/figures"
-  echo "Summary CSVs: ${PROJECT_DIR}/summary_csv"
-fi

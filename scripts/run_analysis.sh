@@ -23,6 +23,7 @@ RESULT_NAMES=(
   "top_dong_service_top5"
   "night_sales_pattern"
   "result_interpretation_support"
+  "question_answer_evidence"
 )
 
 require_command() {

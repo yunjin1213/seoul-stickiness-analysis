@@ -1091,3 +1091,380 @@ FROM (
     ON td.dong_code = dt.dong_code
 ) output_rows
 ORDER BY sort_order, metric_sort, dong_sort;
+
+WITH dong_summary AS (
+  SELECT
+    dong_code,
+    MAX(dong_name) AS dong_name,
+    AVG(subway_inflow) AS avg_subway_inflow,
+    AVG(living_population) AS avg_living_population,
+    AVG(stay_index) AS avg_stay_index,
+    AVG(consumption_index) AS avg_consumption_index,
+    AVG(conversion_score) AS avg_conversion_score
+  FROM analysis_mart_quarter
+  GROUP BY dong_code
+),
+night_summary AS (
+  SELECT
+    dong_code,
+    AVG(conversion_score) AS night_conversion_score
+  FROM analysis_mart_quarter
+  WHERE time_slot = '21_24'
+  GROUP BY dong_code
+),
+market_tiles AS (
+  SELECT
+    ds.dong_code,
+    ds.dong_name,
+    ds.avg_subway_inflow,
+    ds.avg_living_population,
+    ds.avg_stay_index,
+    ds.avg_consumption_index,
+    ds.avg_conversion_score,
+    ns.night_conversion_score,
+    NTILE(5) OVER (
+      ORDER BY CASE WHEN ds.avg_subway_inflow IS NULL THEN 1 ELSE 0 END,
+               ds.avg_subway_inflow DESC
+    ) AS subway_inflow_tile,
+    NTILE(5) OVER (
+      ORDER BY CASE WHEN ds.avg_stay_index IS NULL THEN 1 ELSE 0 END,
+               ds.avg_stay_index DESC
+    ) AS stay_index_tile,
+    NTILE(5) OVER (
+      ORDER BY CASE WHEN ds.avg_consumption_index IS NULL THEN 1 ELSE 0 END,
+               ds.avg_consumption_index DESC
+    ) AS consumption_index_tile,
+    NTILE(5) OVER (
+      ORDER BY CASE WHEN ds.avg_conversion_score IS NULL THEN 1 ELSE 0 END,
+               ds.avg_conversion_score DESC
+    ) AS conversion_score_tile,
+    NTILE(5) OVER (
+      ORDER BY CASE WHEN ns.night_conversion_score IS NULL THEN 1 ELSE 0 END,
+               ns.night_conversion_score DESC
+    ) AS night_conversion_tile
+  FROM dong_summary ds
+  LEFT JOIN night_summary ns
+    ON ds.dong_code = ns.dong_code
+),
+market_type AS (
+  SELECT
+    dong_code,
+    dong_name,
+    CASE
+      WHEN night_conversion_tile = 1 THEN 'night_type'
+      WHEN conversion_score_tile = 1 THEN 'overall_type'
+      WHEN consumption_index_tile = 1 THEN 'consumption_type'
+      WHEN subway_inflow_tile = 1 AND stay_index_tile > 2 THEN 'inflow_type'
+      WHEN stay_index_tile = 1 AND consumption_index_tile > 2 THEN 'stay_type'
+      ELSE 'general_type'
+    END AS market_type,
+    subway_inflow_tile,
+    stay_index_tile,
+    consumption_index_tile,
+    conversion_score_tile,
+    night_conversion_tile
+  FROM market_tiles
+),
+market_names AS (
+  SELECT
+    dong_code,
+    concat_ws('; ', sort_array(collect_set(market_name))) AS market_names
+  FROM market_dong_bridge
+  WHERE market_name IS NOT NULL
+  GROUP BY dong_code
+),
+service_sales AS (
+  SELECT
+    mdb.dong_code,
+    cms.service_type,
+    SUM(cms.sales_amount) AS sales_amount
+  FROM clean_market_sales cms
+  INNER JOIN market_dong_bridge mdb
+    ON cms.market_code = mdb.market_code
+  WHERE cms.service_type IS NOT NULL
+  GROUP BY mdb.dong_code, cms.service_type
+),
+ranked_service AS (
+  SELECT
+    ROW_NUMBER() OVER (
+      PARTITION BY dong_code
+      ORDER BY sales_amount DESC
+    ) AS service_rank,
+    dong_code,
+    service_type
+  FROM service_sales
+),
+top_service_types AS (
+  SELECT
+    dong_code,
+    concat_ws('; ', collect_list(service_type)) AS top_service_types
+  FROM (
+    SELECT
+      dong_code,
+      service_type,
+      service_rank
+    FROM ranked_service
+    WHERE service_rank <= 5
+    DISTRIBUTE BY dong_code
+    SORT BY dong_code, service_rank
+  ) sorted_services
+  GROUP BY dong_code
+),
+time_summary AS (
+  SELECT
+    dong_code,
+    time_slot,
+    AVG(conversion_score) AS avg_conversion_score
+  FROM analysis_mart_quarter
+  GROUP BY dong_code, time_slot
+),
+ranked_time AS (
+  SELECT
+    ROW_NUMBER() OVER (
+      PARTITION BY dong_code
+      ORDER BY avg_conversion_score DESC
+    ) AS time_rank,
+    dong_code,
+    time_slot
+  FROM time_summary
+  WHERE avg_conversion_score IS NOT NULL
+),
+dominant_time AS (
+  SELECT
+    dong_code,
+    time_slot AS dominant_time_slot
+  FROM ranked_time
+  WHERE time_rank = 1
+),
+q1 AS (
+  SELECT
+    'Q1' AS question_no,
+    'subway_inflow_top_dong' AS question_key,
+    ROW_NUMBER() OVER (ORDER BY avg_subway_inflow DESC) AS rank_no,
+    '' AS time_slot,
+    dong_code,
+    dong_name,
+    'avg_subway_inflow' AS metric_name,
+    avg_subway_inflow AS metric_value,
+    avg_subway_inflow,
+    avg_living_population,
+    avg_stay_index,
+    avg_consumption_index,
+    avg_conversion_score
+  FROM dong_summary
+  WHERE avg_subway_inflow IS NOT NULL
+),
+q2 AS (
+  SELECT
+    'Q2' AS question_no,
+    'living_population_top_dong' AS question_key,
+    ROW_NUMBER() OVER (ORDER BY avg_living_population DESC) AS rank_no,
+    '' AS time_slot,
+    dong_code,
+    dong_name,
+    'avg_living_population' AS metric_name,
+    avg_living_population AS metric_value,
+    avg_subway_inflow,
+    avg_living_population,
+    avg_stay_index,
+    avg_consumption_index,
+    avg_conversion_score
+  FROM dong_summary
+  WHERE avg_living_population IS NOT NULL
+),
+q3 AS (
+  SELECT
+    'Q3' AS question_no,
+    'stay_index_top_dong' AS question_key,
+    ROW_NUMBER() OVER (ORDER BY avg_stay_index DESC) AS rank_no,
+    '' AS time_slot,
+    dong_code,
+    dong_name,
+    'avg_stay_index' AS metric_name,
+    avg_stay_index AS metric_value,
+    avg_subway_inflow,
+    avg_living_population,
+    avg_stay_index,
+    avg_consumption_index,
+    avg_conversion_score
+  FROM dong_summary
+  WHERE avg_stay_index IS NOT NULL
+),
+q4 AS (
+  SELECT
+    'Q4' AS question_no,
+    'consumption_index_top_dong' AS question_key,
+    ROW_NUMBER() OVER (ORDER BY avg_consumption_index DESC) AS rank_no,
+    '' AS time_slot,
+    dong_code,
+    dong_name,
+    'avg_consumption_index' AS metric_name,
+    avg_consumption_index AS metric_value,
+    avg_subway_inflow,
+    avg_living_population,
+    avg_stay_index,
+    avg_consumption_index,
+    avg_conversion_score
+  FROM dong_summary
+  WHERE avg_consumption_index IS NOT NULL
+),
+q5 AS (
+  SELECT
+    'Q5' AS question_no,
+    'conversion_score_top_dong' AS question_key,
+    ROW_NUMBER() OVER (ORDER BY avg_conversion_score DESC) AS rank_no,
+    '' AS time_slot,
+    dong_code,
+    dong_name,
+    'avg_conversion_score' AS metric_name,
+    avg_conversion_score AS metric_value,
+    avg_subway_inflow,
+    avg_living_population,
+    avg_stay_index,
+    avg_consumption_index,
+    avg_conversion_score
+  FROM dong_summary
+  WHERE avg_conversion_score IS NOT NULL
+),
+q6_time_summary AS (
+  SELECT
+    time_slot,
+    dong_code,
+    MAX(dong_name) AS dong_name,
+    AVG(subway_inflow) AS avg_subway_inflow,
+    AVG(living_population) AS avg_living_population,
+    AVG(stay_index) AS avg_stay_index,
+    AVG(consumption_index) AS avg_consumption_index,
+    AVG(conversion_score) AS avg_conversion_score
+  FROM analysis_mart_quarter
+  GROUP BY time_slot, dong_code
+),
+q6 AS (
+  SELECT
+    'Q6' AS question_no,
+    'time_slot_strong_pattern' AS question_key,
+    ROW_NUMBER() OVER (
+      PARTITION BY time_slot
+      ORDER BY avg_conversion_score DESC
+    ) AS rank_no,
+    time_slot,
+    dong_code,
+    dong_name,
+    'avg_conversion_score' AS metric_name,
+    avg_conversion_score AS metric_value,
+    avg_subway_inflow,
+    avg_living_population,
+    avg_stay_index,
+    avg_consumption_index,
+    avg_conversion_score
+  FROM q6_time_summary
+  WHERE avg_conversion_score IS NOT NULL
+),
+q7 AS (
+  SELECT
+    'Q7' AS question_no,
+    'dong_market_type' AS question_key,
+    ROW_NUMBER() OVER (ORDER BY ds.avg_conversion_score DESC) AS rank_no,
+    '' AS time_slot,
+    ds.dong_code,
+    ds.dong_name,
+    mt.market_type AS metric_name,
+    ds.avg_conversion_score AS metric_value,
+    ds.avg_subway_inflow,
+    ds.avg_living_population,
+    ds.avg_stay_index,
+    ds.avg_consumption_index,
+    ds.avg_conversion_score
+  FROM dong_summary ds
+  INNER JOIN market_type mt
+    ON ds.dong_code = mt.dong_code
+),
+question_rows AS (
+  SELECT * FROM q1 WHERE rank_no <= 20
+  UNION ALL SELECT * FROM q2 WHERE rank_no <= 20
+  UNION ALL SELECT * FROM q3 WHERE rank_no <= 20
+  UNION ALL SELECT * FROM q4 WHERE rank_no <= 20
+  UNION ALL SELECT * FROM q5 WHERE rank_no <= 20
+  UNION ALL SELECT * FROM q6 WHERE rank_no <= 10
+  UNION ALL SELECT * FROM q7
+)
+INSERT OVERWRITE DIRECTORY '${hivevar:hdfs_base_dir}/results/question_answer_evidence'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+SELECT
+  question_no,
+  question_key,
+  rank_no,
+  time_slot,
+  dong_code,
+  dong_name,
+  metric_name,
+  metric_value,
+  avg_subway_inflow,
+  avg_living_population,
+  avg_stay_index,
+  avg_consumption_index,
+  avg_conversion_score,
+  market_type,
+  market_names,
+  top_service_types,
+  dominant_time_slot
+FROM (
+  SELECT
+    0 AS sort_order,
+    'Q0' AS question_sort,
+    '00_00' AS time_sort,
+    0 AS rank_sort,
+    'question_no' AS question_no,
+    'question_key' AS question_key,
+    'rank' AS rank_no,
+    'time_slot' AS time_slot,
+    'dong_code' AS dong_code,
+    'dong_name' AS dong_name,
+    'metric_name' AS metric_name,
+    'metric_value' AS metric_value,
+    'avg_subway_inflow' AS avg_subway_inflow,
+    'avg_living_population' AS avg_living_population,
+    'avg_stay_index' AS avg_stay_index,
+    'avg_consumption_index' AS avg_consumption_index,
+    'avg_conversion_score' AS avg_conversion_score,
+    'market_type' AS market_type,
+    'market_names' AS market_names,
+    'top_service_types' AS top_service_types,
+    'dominant_time_slot' AS dominant_time_slot
+  UNION ALL
+  SELECT
+    1 AS sort_order,
+    qr.question_no AS question_sort,
+    CASE
+      WHEN qr.time_slot = '' THEN '00_00'
+      ELSE qr.time_slot
+    END AS time_sort,
+    qr.rank_no AS rank_sort,
+    qr.question_no,
+    qr.question_key,
+    CAST(qr.rank_no AS STRING) AS rank_no,
+    qr.time_slot,
+    qr.dong_code,
+    qr.dong_name,
+    qr.metric_name,
+    CAST(qr.metric_value AS STRING) AS metric_value,
+    CAST(qr.avg_subway_inflow AS STRING) AS avg_subway_inflow,
+    CAST(qr.avg_living_population AS STRING) AS avg_living_population,
+    CAST(qr.avg_stay_index AS STRING) AS avg_stay_index,
+    CAST(qr.avg_consumption_index AS STRING) AS avg_consumption_index,
+    CAST(qr.avg_conversion_score AS STRING) AS avg_conversion_score,
+    COALESCE(mt.market_type, '') AS market_type,
+    COALESCE(mn.market_names, '') AS market_names,
+    COALESCE(tst.top_service_types, '') AS top_service_types,
+    COALESCE(dt.dominant_time_slot, '') AS dominant_time_slot
+  FROM question_rows qr
+  LEFT JOIN market_type mt
+    ON qr.dong_code = mt.dong_code
+  LEFT JOIN market_names mn
+    ON qr.dong_code = mn.dong_code
+  LEFT JOIN top_service_types tst
+    ON qr.dong_code = tst.dong_code
+  LEFT JOIN dominant_time dt
+    ON qr.dong_code = dt.dong_code
+) output_rows
+ORDER BY sort_order, question_sort, time_sort, rank_sort;

@@ -284,16 +284,10 @@ bash scripts/run_preprocess.sh
 bash scripts/run_analysis.sh
 ```
 
-분석 결과를 로컬 CSV로 병합한 뒤 그래프와 발표용 요약 CSV를 생성한다.
+분석 결과를 로컬 CSV로 병합한다.
 
 ```bash
 bash scripts/export_results.sh
-
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-
-python3 src/visualize_results.py
 ```
 
 전체 파이프라인은 VM에서 다음 명령 하나로 실행할 수 있다. `bash scripts/run_pipeline.sh`를 실행하면 데이터 다운로드부터 전처리, 분석 결과 도출, 로컬 CSV 병합까지 전체 과정이 순서대로 진행된다. 기본 실행 범위는 데이터 다운로드, Kakao 역-행정동 매핑 생성, HDFS 업로드, Spark 전처리, Hive 분석, HDFS 결과의 로컬 CSV 병합까지다.
@@ -321,12 +315,6 @@ RUN_PREPROCESS=0 \
 bash scripts/run_pipeline.sh
 ```
 
-그래프 생성까지 같은 환경에서 실행하려면 `pandas`, `matplotlib`이 설치되어 있어야 하며, `RUN_VISUALIZE=1`을 추가한다.
-
-```bash
-RUN_VISUALIZE=1 bash scripts/run_pipeline.sh
-```
-
 단계별로 직접 실행할 수도 있다.
 
 ```bash
@@ -336,7 +324,6 @@ bash scripts/upload_hdfs.sh
 bash scripts/run_preprocess.sh
 bash scripts/run_analysis.sh
 bash scripts/export_results.sh
-python3 src/visualize_results.py
 ```
 
 분석 결과는 HDFS의 `${HDFS_BASE_DIR}/results` 아래에 CSV 디렉터리로 저장된다.
@@ -354,16 +341,10 @@ dong_service_sales_mix
 top_dong_service_top5
 night_sales_pattern
 result_interpretation_support
+question_answer_evidence
 ```
 
-`scripts/export_results.sh`는 위 HDFS 결과를 `results_csv/*.csv`로 병합한다. `src/visualize_results.py`는 `results_csv/`를 읽어 `figures/*.png`와 `summary_csv/*.csv`를 생성한다. 입출력 경로를 바꾸려면 다음처럼 실행한다.
-
-```bash
-python3 src/visualize_results.py \
-  --input-dir results_csv \
-  --figure-dir figures \
-  --summary-dir summary_csv
-```
+`scripts/export_results.sh`는 위 HDFS 결과를 `results_csv/*.csv`로 병합한다.
 
 원격 VM에서 생성한 `results_csv`를 Mac 로컬로 가져올 때는 두 단계로 복사한다. 먼저 바깥 Ubuntu 계정에서 내부 컨테이너의 결과를 가져온다.
 
@@ -377,14 +358,7 @@ scp -P 2222 -r maria_dev@localhost:/home/maria_dev/seoul-stickiness-analysis/res
 scp -P 30430 -r ubuntu@access2.bluerack.org:/home/ubuntu/results_csv .
 ```
 
-Mac 로컬의 프로젝트 루트에 `results_csv/`를 둔 뒤 시각화를 실행한다.
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python3 src/visualize_results.py
-```
+Mac 로컬의 프로젝트 루트에 `results_csv/`를 두면 CSV를 바로 확인할 수 있다.
 
 분석 지표의 해석은 다음과 같다.
 
@@ -414,6 +388,7 @@ python3 src/visualize_results.py
 | `top_dong_service_top5` | 역삼1동, 서교동, 여의동, 제기동 및 종합 경쟁력 상위 행정동의 주요 업종 TOP 5를 확인한다. |
 | `night_sales_pattern` | 행정동별 전체 매출 중 `21_24` 시간대 매출 비중을 확인해 야간형 해석의 보조 근거로 사용한다. |
 | `result_interpretation_support` | 각 핵심 지표 TOP 행정동의 포함 상권명, 업종별 매출 TOP 5, 우세 시간대를 함께 확인한다. |
+| `question_answer_evidence` | 7개 분석 질문별 순위 결과에 포함 상권명, 업종별 매출 TOP 5, 우세 시간대, 상권 유형을 붙여 보고서 해석 근거로 사용한다. |
 
 이 보강 분석은 결과의 “원인”을 단정하기 위한 것이 아니라, 특정 행정동이 어떤 시간대와 업종 매출 구조에서 특징을 보이는지 설명하기 위한 보조 자료이다. 분석 단위는 계속 행정동(`dong_code`)이며, 생활인구를 상권 면적 기준으로 재배분하지 않는다.
 
