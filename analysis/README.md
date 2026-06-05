@@ -27,3 +27,26 @@ results_csv/question_answer_evidence.csv
 ```
 
 이 파일은 질문별 순위 결과에 상권 유형, 주요 업종, 우세 시간대 근거를 함께 붙인 파일이므로 보고서 작성 시 가장 먼저 확인한다.
+
+## 분석/시각화 실행
+
+프로젝트 루트에서 다음 명령을 실행한다.
+
+```bash
+python3 analysis/analyze_results.py
+```
+
+실행 결과:
+
+```text
+summary_csv/question_top_answers.csv
+summary_csv/time_slot_winners.csv
+summary_csv/market_type_counts.csv
+summary_csv/q1_top10.csv ... summary_csv/q5_top10.csv
+
+figures/q1_top10.png ... figures/q5_top10.png
+figures/time_slot_winners.png
+figures/market_type_counts.png
+```
+
+콘솔에는 질문별 1위, 시간대별 1위, 상권 유형 분포가 함께 출력된다.
