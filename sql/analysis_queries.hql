@@ -1062,44 +1062,28 @@ SELECT
   dominant_time_slot
 FROM (
   SELECT
-    dong_code,
-    dong_name,
-    high_metric,
-    market_names,
-    top_service_types,
-    dominant_time_slot
-  FROM (
-    SELECT
-      0 AS sort_order,
-      0 AS metric_sort,
-      '00000000' AS dong_sort,
-      'dong_code' AS dong_code,
-      'dong_name' AS dong_name,
-      'high_metric' AS high_metric,
-      'market_names' AS market_names,
-      'top_service_types' AS top_service_types,
-      'dominant_time_slot' AS dominant_time_slot
-    UNION ALL
-    SELECT
-      1 AS sort_order,
-      td.metric_order AS metric_sort,
-      td.dong_code AS dong_sort,
-      td.dong_code,
-      td.dong_name,
-      td.high_metric,
-      COALESCE(mn.market_names, '') AS market_names,
-      COALESCE(tst.top_service_types, '') AS top_service_types,
-      COALESCE(dt.dominant_time_slot, '') AS dominant_time_slot
-    FROM target_dong td
-    LEFT JOIN market_names mn
-      ON td.dong_code = mn.dong_code
-    LEFT JOIN top_service_types tst
-      ON td.dong_code = tst.dong_code
-    LEFT JOIN dominant_time dt
-      ON td.dong_code = dt.dong_code
-  ) output_rows
-  ORDER BY sort_order, metric_sort, dong_sort
-) sorted_rows;
+    'dong_code' AS dong_code,
+    'dong_name' AS dong_name,
+    'high_metric' AS high_metric,
+    'market_names' AS market_names,
+    'top_service_types' AS top_service_types,
+    'dominant_time_slot' AS dominant_time_slot
+  UNION ALL
+  SELECT
+    td.dong_code,
+    td.dong_name,
+    td.high_metric,
+    COALESCE(mn.market_names, '') AS market_names,
+    COALESCE(tst.top_service_types, '') AS top_service_types,
+    COALESCE(dt.dominant_time_slot, '') AS dominant_time_slot
+  FROM target_dong td
+  LEFT JOIN market_names mn
+    ON td.dong_code = mn.dong_code
+  LEFT JOIN top_service_types tst
+    ON td.dong_code = tst.dong_code
+  LEFT JOIN dominant_time dt
+    ON td.dong_code = dt.dong_code
+) output_rows;
 
 WITH dong_summary AS (
   SELECT
@@ -1419,82 +1403,49 @@ SELECT
   dominant_time_slot
 FROM (
   SELECT
-    question_no,
-    question_key,
-    rank_no,
-    time_slot,
-    dong_code,
-    dong_name,
-    metric_name,
-    metric_value,
-    avg_subway_inflow,
-    avg_living_population,
-    avg_stay_index,
-    avg_consumption_index,
-    avg_conversion_score,
-    market_type,
-    market_names,
-    top_service_types,
-    dominant_time_slot
-  FROM (
-    SELECT
-      0 AS sort_order,
-      'Q0' AS question_sort,
-      '00_00' AS time_sort,
-      0 AS rank_sort,
-      'question_no' AS question_no,
-      'question_key' AS question_key,
-      'rank' AS rank_no,
-      'time_slot' AS time_slot,
-      'dong_code' AS dong_code,
-      'dong_name' AS dong_name,
-      'metric_name' AS metric_name,
-      'metric_value' AS metric_value,
-      'avg_subway_inflow' AS avg_subway_inflow,
-      'avg_living_population' AS avg_living_population,
-      'avg_stay_index' AS avg_stay_index,
-      'avg_consumption_index' AS avg_consumption_index,
-      'avg_conversion_score' AS avg_conversion_score,
-      'market_type' AS market_type,
-      'market_names' AS market_names,
-      'top_service_types' AS top_service_types,
-      'dominant_time_slot' AS dominant_time_slot
-    UNION ALL
-    SELECT
-      1 AS sort_order,
-      qr.question_no AS question_sort,
-      CASE
-        WHEN qr.time_slot = '' THEN '00_00'
-        ELSE qr.time_slot
-      END AS time_sort,
-      qr.rank_no AS rank_sort,
-      qr.question_no,
-      qr.question_key,
-      CAST(qr.rank_no AS STRING) AS rank_no,
-      qr.time_slot,
-      qr.dong_code,
-      qr.dong_name,
-      qr.metric_name,
-      CAST(qr.metric_value AS STRING) AS metric_value,
-      CAST(qr.avg_subway_inflow AS STRING) AS avg_subway_inflow,
-      CAST(qr.avg_living_population AS STRING) AS avg_living_population,
-      CAST(qr.avg_stay_index AS STRING) AS avg_stay_index,
-      CAST(qr.avg_consumption_index AS STRING) AS avg_consumption_index,
-      CAST(qr.avg_conversion_score AS STRING) AS avg_conversion_score,
-      COALESCE(mt.market_type, '') AS market_type,
-      COALESCE(mn.market_names, '') AS market_names,
-      COALESCE(tst.top_service_types, '') AS top_service_types,
-      COALESCE(dt.dominant_time_slot, '') AS dominant_time_slot
-    FROM question_rows qr
-    LEFT JOIN market_type mt
-      ON qr.dong_code = mt.dong_code
-    LEFT JOIN market_names mn
-      ON qr.dong_code = mn.dong_code
-    LEFT JOIN top_service_types tst
-      ON qr.dong_code = tst.dong_code
-    LEFT JOIN dominant_time dt
-      ON qr.dong_code = dt.dong_code
-  ) output_rows
-  ORDER BY sort_order, question_sort, time_sort, rank_sort
-) sorted_rows;
-
+    'question_no' AS question_no,
+    'question_key' AS question_key,
+    'rank' AS rank_no,
+    'time_slot' AS time_slot,
+    'dong_code' AS dong_code,
+    'dong_name' AS dong_name,
+    'metric_name' AS metric_name,
+    'metric_value' AS metric_value,
+    'avg_subway_inflow' AS avg_subway_inflow,
+    'avg_living_population' AS avg_living_population,
+    'avg_stay_index' AS avg_stay_index,
+    'avg_consumption_index' AS avg_consumption_index,
+    'avg_conversion_score' AS avg_conversion_score,
+    'market_type' AS market_type,
+    'market_names' AS market_names,
+    'top_service_types' AS top_service_types,
+    'dominant_time_slot' AS dominant_time_slot
+  UNION ALL
+  SELECT
+    qr.question_no,
+    qr.question_key,
+    CAST(qr.rank_no AS STRING) AS rank_no,
+    qr.time_slot,
+    qr.dong_code,
+    qr.dong_name,
+    qr.metric_name,
+    CAST(qr.metric_value AS STRING) AS metric_value,
+    CAST(qr.avg_subway_inflow AS STRING) AS avg_subway_inflow,
+    CAST(qr.avg_living_population AS STRING) AS avg_living_population,
+    CAST(qr.avg_stay_index AS STRING) AS avg_stay_index,
+    CAST(qr.avg_consumption_index AS STRING) AS avg_consumption_index,
+    CAST(qr.avg_conversion_score AS STRING) AS avg_conversion_score,
+    COALESCE(mt.market_type, '') AS market_type,
+    COALESCE(mn.market_names, '') AS market_names,
+    COALESCE(tst.top_service_types, '') AS top_service_types,
+    COALESCE(dt.dominant_time_slot, '') AS dominant_time_slot
+  FROM question_rows qr
+  LEFT JOIN market_type mt
+    ON qr.dong_code = mt.dong_code
+  LEFT JOIN market_names mn
+    ON qr.dong_code = mn.dong_code
+  LEFT JOIN top_service_types tst
+    ON qr.dong_code = tst.dong_code
+  LEFT JOIN dominant_time dt
+    ON qr.dong_code = dt.dong_code
+) output_rows;
