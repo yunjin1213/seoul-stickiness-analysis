@@ -1,352 +1,315 @@
-# 유입된 사람들이 실제로 오래 머무르고 소비까지 이어지는 상권은 어디인가?
+# 유입된 사람들은 어디에서 오래 머무르고 소비까지 이어지는가?
 
-> 생활인구·지하철·상권 데이터를 활용한 서울 주요 야간상권 체류력 및 소비전환 분석
+> 생활인구·지하철·상권 데이터를 활용한 서울 행정동 단위 유입·체류·소비 분석
 
 ## 프로젝트 개요
 
-서울에는 홍대, 강남, 이태원, 건대입구, 신촌 등 다양한 야간상권이 존재한다.
+서울에는 홍대, 강남, 이태원, 건대입구, 신촌 등 다양한 상권이 존재한다. "핫플레이스"는 여러곳이 존재하지만, 사람이 많이 들어오는 곳과 오래 머무르는 곳, 그리고 실제 소비가 강하게 발생하는 곳은 서로 다를 수 있다.
 
-일반적으로 사람들은 특정 지역을 "핫플레이스"라고 부르지만, 실제로 많은 사람이 방문하는 것과 오랫동안 머무르는 것은 다른 개념이다. 또한 사람들이 많이 방문한다고 해서 반드시 소비까지 이어지는 것도 아니다.
+본 프로젝트는 서울 생활인구 데이터, 지하철 승하차 데이터, 서울시 상권분석서비스 데이터를 결합하여 서울의 유입·체류·소비 구조를 분석한다. 최종 분석 단위는 **행정동(`dong_code`)** 이며, 상권 매출 데이터는 서울시 상권분석서비스의 상권-행정동 연결 정보를 이용해 행정동 기준으로 집계한다.
 
-어떤 상권은 유입 인구는 많지만 체류 시간이 짧을 수 있으며, 반대로 유입 규모는 상대적으로 작더라도 방문객이 오래 머물고 활발하게 소비하는 상권일 수 있다.
+즉, 본 프로젝트의 핵심은 특정 상권을 임의로 추천하는 것이 아니라 다음 질문에 답하는 것이다.
 
-본 프로젝트는 서울 생활인구 데이터, 지하철 승하차 데이터, 서울시 상권분석서비스 데이터를 결합하여 서울 주요 야간상권의 유입·체류·소비 구조를 분석하고, 사람을 가장 효과적으로 체류와 소비로 전환시키는 상권을 찾는 것을 목표로 한다.
+> 지하철로 많이 유입되는 지역, 생활인구가 오래 유지되는 지역, 소비가 강한 지역은 실제로 같은 곳인가?
 
 ## 문제 정의
 
-많은 사람들이 방문하는 상권이 반드시 경쟁력 있는 상권일까?
+많은 사람이 방문하는 지역이 반드시 경쟁력 있는 지역일까?
 
-상권의 경쟁력은 단순 방문객 수보다 방문객이 얼마나 오래 머무르고, 실제 소비까지 이어지는지와 더 밀접한 관련이 있을 수 있다. 그러나 대부분의 상권 분석은 유동인구 규모나 매출 규모를 개별적으로 분석하며, 유입 -> 체류 -> 소비의 흐름을 통합적으로 분석한 사례는 많지 않다.
+상권의 경쟁력은 단순 유입 규모뿐 아니라, 유입된 사람들이 해당 지역에 얼마나 머무르고 실제 소비까지 이어지는지와 관련될 수 있다. 그러나 유동인구, 지하철 하차량, 매출 데이터는 보통 개별적으로 분석되는 경우가 많다.
 
-본 프로젝트는 다음 질문에 답하고자 한다.
+본 프로젝트는 세 데이터를 하나의 분석 흐름으로 연결한다.
 
-- 서울에서 가장 많은 사람이 유입되는 상권은 어디인가?
-- 서울에서 가장 많은 사람이 머무르는 상권은 어디인가?
-- 서울에서 가장 체류력이 높은 상권은 어디인가?
-- 체류력이 높은 상권은 실제 소비도 많이 발생하는가?
-- 사람을 오래 붙잡고 소비까지 유도하는 상권은 어떤 특징을 가지는가?
+```text
+지하철 하차량 = 유입
+생활인구 = 체류
+상권 매출 = 소비
+```
+
+이를 통해 서울 행정동별로 유입형, 체류형, 소비전환형, 종합형, 야간형 패턴을 비교한다.
 
 ## 핵심 가설
 
-> 사람을 오래 붙잡고 소비까지 이어지는 상권은 단순히 유입량이 많은 곳이 아니라, 야간 시간대까지 체류 인구가 유지되고 특정 업종 구성을 가진 상권일 것이다.
+> 유입이 많은 지역과 체류·소비가 강한 지역은 항상 일치하지 않을 것이다. 사람을 오래 붙잡고 소비까지 이어지는 지역은 시간대별 생활인구 유지와 업종별 매출 구조에서 차이를 보일 것이다.
 
 ## 핵심 분석 질문
 
-### Q1. 서울에서 가장 많은 사람이 유입되는 상권은 어디인가?
+1. 서울에서 지하철 하차 유입이 가장 많은 행정동은 어디인가?
+2. 서울에서 생활인구가 가장 많은 행정동은 어디인가?
+3. 지하철 유입 대비 생활인구 규모가 큰 행정동은 어디인가?
+4. 생활인구 대비 소비전환이 높은 행정동은 어디인가?
+5. 유입, 체류, 소비를 종합했을 때 상권 경쟁력이 높은 행정동은 어디인가?
+6. 시간대별로 강한 상권 패턴은 어떻게 달라지는가?
+7. 행정동별 상권은 유입형, 체류형, 소비전환형, 종합형, 야간형 중 어디에 가까운가?
 
-지하철 하차량을 기준으로 상권별 유입 규모를 비교한다.
+## 분석 단위
 
-### Q2. 서울에서 가장 많은 사람이 머무르는 상권은 어디인가?
+최종 분석 단위는 **행정동** 이다.
 
-생활인구를 기준으로 상권별 체류 인구 규모를 비교한다.
+생활인구 데이터가 행정동 단위로 제공되기 때문에, 생활인구를 상권 면적 기준으로 임의 배분하지 않는다. 대신 상권 매출 데이터는 상권-행정동 연결 데이터를 이용해 행정동 기준으로 집계한다.
 
-### Q3. 서울에서 가장 체류력이 높은 상권은 어디인가?
+```text
+생활인구 데이터       행정동 기준
+지하철 승하차 데이터   역 기준 -> 역 좌표 -> 행정동 매핑
+상권 매출 데이터      상권 기준 -> 상권-행정동 매핑 -> 행정동 집계
+```
 
-생활인구와 지하철 하차량을 결합하여 체류력 지수를 계산한다.
-
-### Q4. 체류력이 높은 상권은 실제 소비도 많이 발생하는가?
-
-상권 매출 데이터와 체류력 지표를 비교한다.
-
-### Q5. 사람을 오래 붙잡고 소비까지 유도하는 상권은 어떤 특징을 가지는가?
-
-업종 구조와 시간대별 소비 패턴을 분석한다.
-
-## 분석 대상 상권
-
-서울시 상권분석서비스에서 제공하는 공식 상권 단위를 활용한다.
-
-예시 상권은 다음과 같다.
-
-| 구분 | 예시 상권 |
-| --- | --- |
-| 유흥·문화 상권 | 홍대 걷고싶은거리, 이태원 관광특구 |
-| 업무·상업 상권 | 강남역 상권, 광화문 상권 |
-| 대학가 상권 | 건대입구 상권, 신촌 상권, 대학로 상권 |
-| 관광·복합 상권 | 명동 관광특구, 성수 카페거리, 잠실 상권 |
+이 구조를 통해 모든 지표를 `dong_code` 기준으로 비교한다.
 
 ## 데이터 수집 방법
 
 | 데이터 | 출처 | 수집 방식 | 활용 목적 |
 | --- | --- | --- | --- |
-| 서울 생활인구 데이터 | 서울 열린데이터광장 | CSV 다운로드 | 체류 인구 분석 |
-| 서울 지하철 승하차 데이터 | 서울 열린데이터광장 | CSV/OpenAPI | 유입량 분석 |
-| 서울시 상권분석서비스 추정매출 데이터 | 서울 열린데이터광장 | CSV 다운로드 | 소비 분석 |
-| 서울시 상권분석서비스 업종/상권 정보 | 서울 열린데이터광장 | CSV/OpenAPI | 업종 구조 분석 |
+| 서울 생활인구 데이터 | 서울 열린데이터광장 | CSV 다운로드 | 행정동별 체류 인구 분석 |
+| 서울 지하철 승하차 데이터 | 공공데이터포털 | CSV 다운로드 | 역별 시간대 하차 유입 분석 |
+| 서울 지하철 역 마스터 | 서울 열린데이터광장 | CSV 다운로드 | 역 좌표 기반 행정동 매핑 |
+| 서울시 상권분석서비스 추정매출 데이터 | 서울 열린데이터광장 | CSV 다운로드 | 행정동별 소비 규모 분석 |
+| 서울시 상권분석서비스 영역-상권 데이터 | 서울 열린데이터광장 | CSV 다운로드 | 상권코드와 행정동코드 연결 |
+| Kakao Local API | Kakao Developers | REST API 호출 | 지하철역 좌표를 행정동으로 변환 |
 
-데이터 수집은 Bash 또는 Python 스크립트로 자동화하여 재실행 가능하도록 구성한다. 수집한 원천 데이터는 HDFS에 적재하고, Spark와 Hive를 활용해 전처리 및 분석을 수행한다.
+데이터 수집은 Bash/Python 스크립트로 자동화하여 재실행 가능하도록 구성한다. 수집한 원천 데이터는 HDFS에 적재하고, Spark와 Hive를 활용해 전처리 및 분석을 수행한다.
 
 ## 시스템 아키텍처
 
 ```text
-서울 생활인구 데이터
-서울 지하철 승하차 데이터
-서울시 상권분석서비스 데이터
+공개 데이터 다운로드 / Kakao API 호출
         ↓
-Raw Data 저장
+Raw CSV 저장
         ↓
 HDFS 적재
         ↓
 Spark DataFrame 전처리
         ↓
-Hive External Table 생성
+Processed Parquet 저장
         ↓
-Spark SQL / HiveQL 분석
+Hive External Table 등록
         ↓
-유입 → 체류 → 소비 분석
+HiveQL 분석 쿼리 실행
         ↓
-체류력 및 소비전환 지표 계산
+분석 결과 CSV 생성
         ↓
-시각화 및 인사이트 도출
+로컬 요약 CSV 및 시각화 생성
 ```
 
 ## 데이터 처리 방법
 
 ### 생활인구 데이터
 
-- 날짜 정제
-- 시간대 정제
-- 행정동 매핑
-- 상권 매핑
-- 야간 시간대 생활인구 집계
+- 날짜 및 시간대 컬럼 정리
+- 행정동 코드 정리
+- 생활인구 컬럼 타입 변환
+- 행정동·시간대별 생활인구 집계
 
 활용 목적:
 
-- 상권별 체류 인구 분석
-- 시간대별 체류 패턴 분석
+- 행정동별 체류 인구 분석
+- 시간대별 생활인구 패턴 분석
 
 ### 지하철 데이터
 
-- 역명 정규화
-- 시간대별 하차량 집계
-- 상권 매핑
-- 야간 시간대 유입량 집계
+- 역명, 호선, 승하차 구분 정리
+- 하차 인원만 유입 지표로 사용
+- Kakao Local API로 생성한 역-행정동 매핑과 조인
+- 행정동·시간대별 지하철 하차량 집계
 
 활용 목적:
 
-- 상권별 유입 인구 분석
+- 행정동별 지하철 유입 분석
 - 유입량 대비 체류량 비교
 
-### 상권 데이터
+### 상권 매출 데이터
 
-- 상권 코드 및 상권명 정제
-- 업종 분류
-- 시간대별 매출 집계
-- 연령대별 매출 집계
-- 업종별 매출 및 점포 구성 계산
+- 상권 코드, 상권명, 업종, 시간대별 매출 정리
+- 상권-행정동 매핑과 조인
+- 행정동·시간대·업종별 매출 집계
 
 활용 목적:
 
-- 상권별 소비 규모 분석
-- 체류력과 소비전환 지표 계산
-- 업종 구조와 체류력의 관계 분석
+- 행정동별 소비 규모 분석
+- 생활인구 대비 매출 규모 분석
+- 업종별 매출 구조를 통한 해석 보강
 
-### 통합 데이터셋 생성
+## 주요 테이블
 
-상권 단위로 다음 항목을 결합한 통합 분석 테이블을 생성한다.
+| 단계 | 테이블/경로 | 설명 |
+| --- | --- | --- |
+| Raw | `raw_people` | 원천 생활인구 CSV |
+| Raw | `raw_subway` | 원천 지하철 승하차 CSV |
+| Raw | `raw_station_master` | 원천 역 마스터 CSV |
+| Raw | `raw_market_sales` | 원천 상권 추정매출 CSV |
+| Raw | `raw_market_area` | 원천 상권-행정동 연결 CSV |
+| Clean | `clean_people` | 영어 컬럼명과 타입으로 정리한 생활인구 |
+| Clean | `clean_subway` | 영어 컬럼명과 타입으로 정리한 지하철 데이터 |
+| Clean | `clean_market_sales` | 영어 컬럼명과 타입으로 정리한 매출 데이터 |
+| Bridge | `station_dong_bridge` | Kakao API 기반 역-행정동 매핑 |
+| Bridge | `market_dong_bridge` | 상권코드-행정동코드 매핑 |
+| Mart | `analysis_mart_quarter` | 분기·행정동·시간대 단위 최종 분석 mart |
 
-- 날짜
-- 시간대
-- 생활인구
-- 지하철 하차량
-- 매출
-- 업종 구성
+## 분석 지표
 
-## 분석 방법
-
-### 1. 유입량 분석
-
-**Subway Inflow**
-
-```text
-Subway Inflow = 야간 시간대 평균 하차량
-```
-
-상권으로 유입되는 사람의 규모를 측정한다.
-
-### 2. 체류량 분석
-
-**Night Population**
+### Subway Inflow
 
 ```text
-Night Population = 야간 시간대 평균 생활인구
+Subway Inflow = 시간대별 평균 지하철 하차량
 ```
 
-상권 내 실제 체류 인구 규모를 측정한다.
+행정동으로 유입되는 지하철 하차 인원의 규모를 나타낸다.
 
-### 3. 체류력 분석
-
-**Stay Index**
+### Living Population
 
 ```text
-Stay Index = 생활인구 / 지하철 하차량
+Living Population = 시간대별 평균 생활인구
 ```
 
-해석:
+해당 행정동에 머무르는 인구 규모를 나타낸다.
 
-- 높음: 유입량 대비 체류 인구가 크게 유지되는 상권
-- 낮음: 지하철 유입은 많지만 체류 인구가 상대적으로 낮은 통과형 상권
-
-단, 이 지표는 개인별 실제 체류시간을 직접 측정하는 값이 아니라, 권역 단위의 상대적 체류력을 나타내는 대리 지표이다.
-
-### 4. 소비 분석
-
-**Consumption Index**
+### Stay Index
 
 ```text
-Consumption Index = 매출 / 생활인구
+Stay Index = Living Population / Subway Inflow
 ```
 
-해석:
+지하철 유입 대비 생활인구 규모를 나타낸다.
 
-- 높음: 체류 인구 대비 매출 규모가 큰 상권
-- 낮음: 체류 인구는 많지만 소비 규모가 상대적으로 낮은 상권
+이 값은 개인별 실제 체류시간이 아니라, 행정동 단위의 상대적 체류 특성을 보기 위한 대리 지표이다. 버스, 도보, 택시, 자가용 유입은 직접 반영하지 않는다.
 
-### 5. 소비전환 분석
-
-**Conversion Score**
+### Consumption Index
 
 ```text
-Conversion Score = 표준화(Subway Inflow) + 표준화(Living Population) + 표준화(Sales Amount)
+Consumption Index = Sales Amount / Living Population
 ```
 
-유입된 사람이 체류와 소비로 얼마나 이어지는지 권역 단위로 비교한다.
+생활인구 대비 매출 규모를 나타낸다.
 
-### 6. 체류력 원인 분석
+이 값은 개인별 구매 전환율이 아니라, 행정동 단위에서 생활인구 규모에 비해 매출이 얼마나 크게 나타나는지 비교하기 위한 지표이다.
 
-상권 특성과 체류력의 관계를 분석한다.
-
-예시 변수:
-
-- 카페 비율
-- 주점 비율
-- 음식점 비율
-- 문화시설 비율
-- 서비스업 비율
-
-분석 목표:
+### Conversion Score
 
 ```text
-어떤 상권 특성이 높은 체류력과 소비전환과 관련되는가?
+Conversion Score = z(Subway Inflow) + z(Living Population) + z(Sales Amount)
 ```
 
-## 기대 결과물
+유입, 체류, 소비 규모를 표준화해 합산한 종합 점수이다. 분기·시간대 내에서 상대적으로 강한 행정동을 찾기 위해 사용한다.
 
-- 서울 유입량 TOP 10 상권
-- 서울 체류력 TOP 10 상권
-- 서울 소비전환율 TOP 10 상권
-- 상권별 유입·체류·소비 비교
-- 시간대별 상권 행동 패턴 분석
-- 체류력과 업종 구조 관계 분석
-- 서울 야간상권 유형 분류
+## 분석 결과 파일
 
-## 실행 메모
+Hive 분석 결과는 HDFS의 `${HDFS_BASE_DIR}/results` 아래에 저장되고, `scripts/export_results.sh` 실행 후 `results_csv/*.csv`로 병합된다.
 
-HDP Sandbox에서 원천 데이터를 수집한 뒤, Kakao Local API로 지하철역-행정동 매핑 파일을 생성하고 HDFS에 올린다.
+| 결과 파일 | 의미 |
+| --- | --- |
+| `top_subway_inflow.csv` | 지하철 하차 유입이 많은 행정동 순위 |
+| `top_living_population.csv` | 생활인구가 많은 행정동 순위 |
+| `top_stay_index.csv` | 지하철 유입 대비 생활인구 규모가 큰 행정동 순위 |
+| `top_consumption_index.csv` | 생활인구 대비 매출 규모가 큰 행정동 순위 |
+| `top_conversion_score.csv` | 유입·체류·소비 종합 점수가 높은 행정동 순위 |
+| `time_slot_pattern.csv` | 시간대별 종합 점수가 높은 행정동 순위 |
+| `dong_market_type.csv` | 행정동별 대표 상권 유형 분류 |
+| `dong_service_sales_mix.csv` | 행정동별 업종 매출 구성과 비중 |
+| `top_dong_service_top5.csv` | 주요 행정동별 매출 상위 업종 TOP 5 |
+| `night_sales_pattern.csv` | 21~24시 매출 비중이 높은 행정동 |
+| `result_interpretation_support.csv` | 핵심 TOP 행정동의 상권명, 업종 TOP 5, 우세 시간대 요약 |
+| `question_answer_evidence.csv` | 7개 분석 질문별 답변과 해석 보조 근거 |
 
-Kakao REST API 키는 프로젝트 루트의 `.env`에 저장하거나 현재 쉘 환경변수로 제공한다. `.env`는 공개 저장소에 커밋하면 안 된다.
+## 실행 방법
+
+HDP Sandbox 또는 Hadoop/Spark/Hive가 설치된 VM에서 실행한다.
+
+### 1. 데이터 다운로드
+
+```bash
+bash scripts/download_data.sh
+```
+
+### 2. Kakao API 키 설정
+
+Kakao REST API 키는 코드나 README에 직접 쓰지 않는다. 프로젝트 루트의 `.env`에 저장하거나 현재 쉘 환경변수로 제공한다.
 
 ```bash
 cp .env.example .env
 vi .env
 ```
 
-`.env`에는 실제 키 값을 다음 형식으로 넣는다.
+`.env` 형식:
 
 ```bash
 KAKAO_REST_API_KEY=...
 ```
 
-그 다음 매핑 파일을 생성한다.
+### 3. 역-행정동 매핑 생성
 
 ```bash
 bash scripts/create_station_dong_mapping.sh
 ```
 
-생성되는 파일:
+생성 파일:
 
 ```text
 ${DATASET_DIR}/StationDongMapping/station_dong_mapping.csv
 ```
 
-이 파일은 Kakao Local API의 좌표 -> 행정동 변환 결과를 사용하며, 지하철역 좌표를 행정동 코드(`dong_code`)에 연결한다. API 키 값은 코드, README, 커밋 로그, `.env.example` 어디에도 포함하지 않는다.
+이 파일은 Kakao Local API의 좌표 -> 행정동 변환 결과를 사용한다. Kakao 행정동 코드 10자리 중 앞 8자리를 생활인구 데이터의 행정동 코드와 맞춰 사용한다.
 
-원천 데이터와 역-행정동 매핑을 HDFS에 올린 뒤 전처리를 실행한다.
+### 4. HDFS 업로드
 
 ```bash
 bash scripts/upload_hdfs.sh
+```
+
+### 5. Spark 전처리
+
+```bash
 bash scripts/run_preprocess.sh
 ```
 
-전처리가 끝나면 Hive 분석 쿼리를 실행해 발표/시각화용 결과를 생성한다.
+전처리 결과는 HDFS의 `${HDFS_BASE_DIR}/processed` 아래에 Parquet으로 저장된다.
+
+Hive external table은 HiveServer2의 HDFS 사용자 권한으로 등록된다. 개인 사용자 HDFS 경로에 데이터를 올린 경우를 고려해 스크립트는 Hive 사용자에게 필요한 ACL을 자동으로 부여한다. HiveServer2 HDFS 사용자가 다른 환경이면 다음처럼 지정한다.
+
+```bash
+HIVE_HDFS_USER=hive bash scripts/run_preprocess.sh
+```
+
+### 6. Hive 분석
 
 ```bash
 bash scripts/run_analysis.sh
 ```
 
-분석 결과를 로컬 CSV로 병합한다.
+분석 결과는 HDFS의 `${HDFS_BASE_DIR}/results` 아래에 저장된다.
+
+### 7. 결과 CSV 병합
 
 ```bash
 bash scripts/export_results.sh
 ```
 
-전체 파이프라인은 VM에서 다음 명령 하나로 실행할 수 있다. `bash scripts/run_pipeline.sh`를 실행하면 데이터 다운로드부터 전처리, 분석 결과 도출, 로컬 CSV 병합까지 전체 과정이 순서대로 진행된다. 기본 실행 범위는 데이터 다운로드, Kakao 역-행정동 매핑 생성, HDFS 업로드, Spark 전처리, Hive 분석, HDFS 결과의 로컬 CSV 병합까지다.
+HDFS 결과를 로컬 `results_csv/*.csv`로 병합한다.
+
+### 전체 파이프라인 실행
+
+데이터 다운로드부터 결과 CSV 병합까지 한 번에 실행하려면 다음 명령을 사용한다.
 
 ```bash
 bash scripts/run_pipeline.sh
 ```
 
-이미 다운로드와 HDFS 업로드가 끝난 상태에서 전처리와 분석만 다시 실행하려면 다음처럼 단계별 플래그를 끈다.
+이미 데이터 수집과 HDFS 업로드가 끝난 상태에서 전처리와 분석만 다시 실행하려면 다음처럼 단계별 플래그를 끈다.
 
 ```bash
-RUN_DOWNLOAD=0 \
-RUN_MAPPING=0 \
-RUN_UPLOAD=0 \
-bash scripts/run_pipeline.sh
+RUN_DOWNLOAD=0 RUN_MAPPING=0 RUN_UPLOAD=0 bash scripts/run_pipeline.sh
 ```
 
 분석 쿼리와 결과 CSV 병합만 다시 실행하려면 다음처럼 실행한다.
 
 ```bash
-RUN_DOWNLOAD=0 \
-RUN_MAPPING=0 \
-RUN_UPLOAD=0 \
-RUN_PREPROCESS=0 \
-bash scripts/run_pipeline.sh
+RUN_DOWNLOAD=0 RUN_MAPPING=0 RUN_UPLOAD=0 RUN_PREPROCESS=0 bash scripts/run_pipeline.sh
 ```
 
-단계별로 직접 실행할 수도 있다.
+## 로컬 결과 확인
 
-```bash
-bash scripts/download_data.sh
-bash scripts/create_station_dong_mapping.sh
-bash scripts/upload_hdfs.sh
-bash scripts/run_preprocess.sh
-bash scripts/run_analysis.sh
-bash scripts/export_results.sh
-```
+VM에서 생성한 `results_csv`를 Mac 로컬로 가져올 때는 두 단계로 복사한다.
 
-분석 결과는 HDFS의 `${HDFS_BASE_DIR}/results` 아래에 CSV 디렉터리로 저장된다.
-
-```text
-top_subway_inflow
-top_living_population
-top_stay_index
-top_consumption_index
-top_conversion_score
-time_slot_pattern
-dong_market_type
-top_dong_time_profile
-dong_service_sales_mix
-top_dong_service_top5
-night_sales_pattern
-result_interpretation_support
-question_answer_evidence
-```
-
-`scripts/export_results.sh`는 위 HDFS 결과를 `results_csv/*.csv`로 병합한다.
-
-원격 VM에서 생성한 `results_csv`를 Mac 로컬로 가져올 때는 두 단계로 복사한다. 먼저 바깥 Ubuntu 계정에서 내부 컨테이너의 결과를 가져온다.
+먼저 바깥 Ubuntu 계정에서 내부 컨테이너의 결과를 가져온다.
 
 ```bash
 scp -P 2222 -r maria_dev@localhost:/home/maria_dev/seoul-stickiness-analysis/results_csv /home/ubuntu/
@@ -358,8 +321,6 @@ scp -P 2222 -r maria_dev@localhost:/home/maria_dev/seoul-stickiness-analysis/res
 scp -P 30430 -r ubuntu@access2.bluerack.org:/home/ubuntu/results_csv .
 ```
 
-Mac 로컬의 프로젝트 루트에 `results_csv/`를 두면 CSV를 바로 확인할 수 있다.
-
 로컬 분석과 시각화는 VM 파이프라인 코드와 분리해서 관리한다.
 
 ```text
@@ -369,51 +330,20 @@ figures/            로컬에서 생성한 그래프 이미지. git 제외.
 summary_csv/        로컬에서 만든 보고서용 요약 CSV. git 제외.
 ```
 
-`src/`는 Spark 전처리 파이프라인 코드용으로 유지하고, pandas/matplotlib 기반의 보고서 분석 코드는 `analysis/`에 둔다. 7개 질문 답변과 해석 근거는 먼저 `results_csv/question_answer_evidence.csv`를 기준으로 확인한다.
+## 상권 유형 분류
 
-분석 지표의 해석은 다음과 같다.
+행정동별 상권 유형은 여러 특성을 동시에 가질 수 있지만, 본 분석에서는 우선순위 기반으로 대표 유형 하나를 부여한다.
 
-- `stay_index`: 지하철 유입 대비 생활인구 규모
-- `consumption_index`: 생활인구 대비 매출 규모
-- `conversion_score`: `subway_inflow`, `living_population`, `sales_amount`를 분기·시간대 안에서 표준화해 합산한 종합 점수
+| market_type | 한글 유형명 | 의미 |
+| --- | --- | --- |
+| `night_type` | 야간형 | 21~24시 종합 점수가 상대적으로 높은 지역 |
+| `overall_type` | 종합형 | 유입·체류·소비 종합 점수가 높은 지역 |
+| `consumption_type` | 소비전환형 | 생활인구 대비 매출 규모가 높은 지역 |
+| `inflow_type` | 유입형 | 지하철 하차 유입이 높고 체류 지표는 상대적으로 낮은 지역 |
+| `stay_type` | 체류형 | 지하철 유입 대비 생활인구 규모가 높은 지역 |
+| `general_type` | 일반형 | 위 유형에 뚜렷하게 포함되지 않는 지역 |
 
-행정동별 상권 유형은 유입형, 체류형, 소비전환형, 종합형, 야간형 등 여러 특성을 동시에 가질 수 있으나, 본 분석에서는 우선순위 기반으로 대표 유형 하나를 부여한다. Hive CLI에서 한글명이 깨져 보일 수 있으므로 결과 해석과 조인은 `dong_code`를 기준 키로 사용한다. `dong_market_type`의 `market_type`은 CSV 호환성을 위해 ASCII 코드로 저장한다.
-
-| market_type | 한글 유형명 |
-| --- | --- |
-| `night_type` | 야간형 |
-| `overall_type` | 종합형 |
-| `consumption_type` | 소비전환형 |
-| `inflow_type` | 유입형 |
-| `stay_type` | 체류형 |
-| `general_type` | 일반형 |
-
-### 해석 보강 분석
-
-기존 7개 핵심 질문은 행정동 단위 순위와 유형 분류로 답한다. 다만 결과 해석이 특정 지역 이미지나 주관적 설명에 치우치지 않도록, 상권 업종 매출 구조와 시간대별 지표를 보조 근거로 함께 생성한다.
-
-| 결과 경로 | 목적 |
-| --- | --- |
-| `top_dong_time_profile` | `conversion_score` 상위 행정동의 분기·시간대별 유입, 생활인구, 매출, 지표 값을 확인한다. |
-| `dong_service_sales_mix` | 행정동별 업종 매출 구성과 업종별 매출 비중을 확인한다. |
-| `top_dong_service_top5` | 역삼1동, 서교동, 여의동, 제기동 및 종합 경쟁력 상위 행정동의 주요 업종 TOP 5를 확인한다. |
-| `night_sales_pattern` | 행정동별 전체 매출 중 `21_24` 시간대 매출 비중을 확인해 야간형 해석의 보조 근거로 사용한다. |
-| `result_interpretation_support` | 각 핵심 지표 TOP 행정동의 포함 상권명, 업종별 매출 TOP 5, 우세 시간대를 함께 확인한다. |
-| `question_answer_evidence` | 7개 분석 질문별 순위 결과에 포함 상권명, 업종별 매출 TOP 5, 우세 시간대, 상권 유형을 붙여 보고서 해석 근거로 사용한다. |
-
-이 보강 분석은 결과의 “원인”을 단정하기 위한 것이 아니라, 특정 행정동이 어떤 시간대와 업종 매출 구조에서 특징을 보이는지 설명하기 위한 보조 자료이다. 분석 단위는 계속 행정동(`dong_code`)이며, 생활인구를 상권 면적 기준으로 재배분하지 않는다.
-
-Hive external table은 기본적으로 HiveServer2의 HDFS 사용자(`hive`) 권한으로 등록된다. 따라서 `/user/maria_dev/seoul_stickiness`처럼 개인 사용자 HDFS 경로에 데이터를 올린 경우, 단순히 `chmod 777`로 전체 공개하지 않고 스크립트가 다음 ACL을 자동 적용한다.
-
-```text
-user:hive:rwx
-```
-
-HiveServer2 HDFS 사용자가 다른 환경이면 다음처럼 지정한다.
-
-```bash
-HIVE_HDFS_USER=hive bash scripts/run_preprocess.sh
-```
+Hive CLI에서 한글명이 깨져 보일 수 있으므로 결과 해석과 조인은 `dong_code`를 기준 키로 사용한다.
 
 ## 확장 가능성
 
@@ -429,10 +359,10 @@ HIVE_HDFS_USER=hive bash scripts/run_preprocess.sh
 - 생활인구는 추정 기반 데이터이다.
 - 체류시간을 개인 단위로 직접 측정할 수 없다.
 - 지하철 데이터는 도보, 버스, 택시, 자가용 이동을 반영하지 않는다.
-- 소비전환 지표는 개인별 구매 전환이 아니라 권역 단위의 상대 지표이다.
-- 상권 경계 설정에 따라 결과가 달라질 수 있다.
+- 소비전환 지표는 개인별 구매 전환이 아니라 행정동 단위의 상대 지표이다.
+- 상권 매출 데이터는 상권-행정동 연결 방식에 따라 행정동별 집계 결과가 달라질 수 있다.
 - 상관관계 분석만 가능하며 인과관계를 직접 증명할 수는 없다.
 
 ## 최종 한 줄 요약
 
-서울 생활인구, 지하철 승하차, 상권 데이터를 결합하여 서울 주요 야간상권의 유입·체류·소비 구조를 분석하고, 사람을 가장 효과적으로 체류와 소비로 전환시키는 상권의 특성을 규명하는 Spark/Hive 기반 빅데이터 프로젝트.
+서울 생활인구, 지하철 승하차, 상권 매출 데이터를 행정동 기준으로 결합하여 유입·체류·소비 구조를 분석하고, 사람이 많이 들어오는 지역과 오래 머무르는 지역, 소비가 강한 지역이 어떻게 다른지 규명하는 Spark/Hive 기반 빅데이터 분석 프로젝트.
