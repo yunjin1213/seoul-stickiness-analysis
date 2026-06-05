@@ -37,6 +37,16 @@ require_command() {
 
 require_command hdfs
 
+PYTHON_BIN=""
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON_BIN="python3"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+else
+  echo "[error] Required command not found: python3 or python" >&2
+  exit 1
+fi
+
 echo "== Export analysis results =="
 echo "HDFS_RESULTS_DIR=${HDFS_RESULTS_DIR}"
 echo "LOCAL_RESULTS_DIR=${LOCAL_RESULTS_DIR}"
@@ -59,7 +69,7 @@ for result_name in "${RESULT_NAMES[@]}"; do
   mv "${local_path}.tmp" "${local_path}"
 done
 
-python3 "${PROJECT_DIR}/scripts/create_evidence_csv.py" \
+"${PYTHON_BIN}" "${PROJECT_DIR}/scripts/create_evidence_csv.py" \
   --results-dir "${LOCAL_RESULTS_DIR}"
 
 echo "== Exported files =="
