@@ -19,7 +19,7 @@ QUESTION_LABELS = {
     "Q1": "지하철 하차 유입 TOP 10",
     "Q2": "생활인구 TOP 10",
     "Q3": "유입 대비 생활인구 TOP 10",
-    "Q4": "생활인구 대비 소비전환 TOP 10",
+    "Q4": "생활인구 대비 매출 규모 TOP 10",
     "Q5": "종합 상권 경쟁력 TOP 10",
 }
 
@@ -27,7 +27,7 @@ QUESTION_METRIC_LABELS = {
     "Q1": "평균 지하철 하차 유입",
     "Q2": "평균 생활인구",
     "Q3": "Stay Index",
-    "Q4": "Consumption Index",
+    "Q4": "생활인구 대비 매출 규모",
     "Q5": "Conversion Score",
 }
 
