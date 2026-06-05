@@ -59,6 +59,9 @@ for result_name in "${RESULT_NAMES[@]}"; do
   mv "${local_path}.tmp" "${local_path}"
 done
 
+python3 "${PROJECT_DIR}/scripts/create_evidence_csv.py" \
+  --results-dir "${LOCAL_RESULTS_DIR}"
+
 echo "== Exported files =="
 ls -lh "${LOCAL_RESULTS_DIR}"
 
