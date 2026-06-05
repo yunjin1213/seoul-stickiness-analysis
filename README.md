@@ -360,6 +360,17 @@ scp -P 30430 -r ubuntu@access2.bluerack.org:/home/ubuntu/results_csv .
 
 Mac 로컬의 프로젝트 루트에 `results_csv/`를 두면 CSV를 바로 확인할 수 있다.
 
+로컬 분석과 시각화는 VM 파이프라인 코드와 분리해서 관리한다.
+
+```text
+results_csv/        VM에서 내려받은 최종 CSV. git 제외.
+analysis/           로컬 분석/시각화 스크립트. git 포함.
+figures/            로컬에서 생성한 그래프 이미지. git 제외.
+summary_csv/        로컬에서 만든 보고서용 요약 CSV. git 제외.
+```
+
+`src/`는 Spark 전처리 파이프라인 코드용으로 유지하고, pandas/matplotlib 기반의 보고서 분석 코드는 `analysis/`에 둔다. 7개 질문 답변과 해석 근거는 먼저 `results_csv/question_answer_evidence.csv`를 기준으로 확인한다.
+
 분석 지표의 해석은 다음과 같다.
 
 - `stay_index`: 지하철 유입 대비 생활인구 규모
